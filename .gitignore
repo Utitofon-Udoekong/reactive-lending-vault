@@ -24,3 +24,5 @@ Thumbs.db
 
 # Node modules (if using npm dependencies)
 node_modules/
+
+foundry.lock

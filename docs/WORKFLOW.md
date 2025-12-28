@@ -23,22 +23,24 @@ forge script script/DeployOrigin.s.sol:DeployOriginContracts \
 
 | Contract | Deploy Tx Hash | Contract Address |
 |----------|---------------|------------------|
-| MockToken | `0x_TOKEN_DEPLOY_TX_HASH` | `0x_TOKEN_ADDRESS` |
-| Pool A | `0x_POOL_A_DEPLOY_TX_HASH` | `0x_POOL_A_ADDRESS` |
-| Pool B | `0x_POOL_B_DEPLOY_TX_HASH` | `0x_POOL_B_ADDRESS` |
-| LendingVault | `0x_VAULT_DEPLOY_TX_HASH` | `0x_VAULT_ADDRESS` |
-| Token Mint | `0x_TOKEN_MINT_TX_HASH` | - |
+| MockToken | `0x673a544846e1457d4271cfe8141f59d5422d8427f4edce2c30f1b851249cd9ed` | `0x235Ce33F243ef36233187693067B2D16b3c91d54` |
+| Pool A | `0xe4d9dc1e89e89a7ea13724441f2865c123a130ca3d1e785f7cf61185ee20a143` | `0xcf69921D1a7Cdb94c8333F79200eA09d206B6433` |
+| Pool B | `0x196aad4a7b50c6cb7c60fad4a974b2afe87f2425372d6bc7d94eec67dfb3b8d0` | `0xA6b3E4CA11151b0e9f05b0302D136b4c00C2a8c4` |
+| LendingVault | `0xfce0db678bf86b38f87ee0abf1a20bbf1a19b5aeaf99e4c49ba66f465b08aaa8` | `0x531d8629d255ABf931Aae1EfD6Dd3F952aB1721C` |
+| Token Mint | `0xd4cc109f821a55191329af90ed1ea633ce323d3c6221362ac6d615c3b13dd139` | - |
+
+**Block:** 9934500
 
 **Example Output:**
 ```
 Deploying Origin Contracts to Sepolia
-Deployer: 0xYourAddress
-Balance: 0.5 ETH
+Deployer: 0xabBce9E834eB1c61CDbE7225be03987a8945BCbC
+Balance: 140413716036063021
 
-MockToken deployed at: 0x...
-Pool A deployed at: 0x...
-Pool B deployed at: 0x...
-LendingVault deployed at: 0x...
+MockToken deployed at: 0x235Ce33F243ef36233187693067B2D16b3c91d54
+Pool A deployed at: 0xcf69921D1a7Cdb94c8333F79200eA09d206B6433
+Pool B deployed at: 0xA6b3E4CA11151b0e9f05b0302D136b4c00C2a8c4
+LendingVault deployed at: 0x531d8629d255ABf931Aae1EfD6Dd3F952aB1721C
 Minted 1,000,000 tokens to deployer
 
 === DEPLOYMENT SUMMARY ===
@@ -101,7 +103,7 @@ forge script script/DeployReactive.s.sol:DeployReactive \
 The ReactVM ID is your deployer address on Reactive Network.
 
 ```bash
-export REACTVM_ID=0xYourDeployerAddress
+export REACTVM_ID=0xabBce9E834eB1c61CDbE7225be03987a8945BCbC
 
 forge script script/SetupVault.s.sol:SetupVault \
   --rpc-url $SEPOLIA_RPC_URL \
@@ -110,9 +112,9 @@ forge script script/SetupVault.s.sol:SetupVault \
 
 **Transaction Hash:**
 
-| Operation | Tx Hash | Network |
-|-----------|---------|---------|
-| setAuthorizedReactVM | `0x_SETUP_VAULT_TX_HASH` | Sepolia |
+| Operation | Tx Hash | Network | Block |
+|-----------|---------|---------|-------|
+| setAuthorizedReactVM | `0x7d021dff664a6bd900447a0ea6d59f2dc088abc033718ae10dba8bfa116b5ff2` | Sepolia | 9934513 |
 
 ---
 
@@ -304,18 +306,19 @@ forge script script/TestWorkflow.s.sol:TestWorkflow \
 
 | Contract | Address |
 |----------|---------|
-| MockToken (mUSDC) | `0x...` |
-| MockLendingPool A | `0x...` |
-| MockLendingPool B | `0x...` |
-| LendingVault | `0x...` |
+| MockToken (mUSDC) | `0x235Ce33F243ef36233187693067B2D16b3c91d54` |
+| MockLendingPool A | `0xcf69921D1a7Cdb94c8333F79200eA09d206B6433` |
+| MockLendingPool B | `0xA6b3E4CA11151b0e9f05b0302D136b4c00C2a8c4` |
+| LendingVault | `0x531d8629d255ABf931Aae1EfD6Dd3F952aB1721C` |
 
 ### Reactive Lasna Testnet (Chain ID: 5318007)
 
 | Contract | Address |
 |----------|---------|
-| YieldMonitorReactive | `0x...` |
+| YieldMonitorReactive | `PENDING - Needs Reactive Network ETH` |
 
 ---
+
 
 ## Block Explorers
 

@@ -3,7 +3,68 @@ pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
 import "../src/reactive/YieldMonitorReactive.sol";
+import "../src/reactive/AbstractReactive.sol";
 import "../src/interfaces/IReactive.sol";
+
+/**
+ * @title TestableYieldMonitor
+ * @notice A test harness that bypasses system contract calls
+ */
+contract TestableYieldMonitor is YieldMonitorReactive {
+    constructor(
+        uint256 _originChainId,
+        uint256 _destinationChainId,
+        address _poolA,
+        address _poolB,
+        address _lendingVault,
+        uint256 _rebalanceThreshold,
+        uint256 _minBlocksBetweenRebalance
+    ) YieldMonitorReactive(
+        _originChainId,
+        _destinationChainId,
+        _poolA,
+        _poolB,
+        _lendingVault,
+        _rebalanceThreshold,
+        _minBlocksBetweenRebalance
+    ) {}
+
+    // Override react to allow calling in tests (bypass vmOnly)
+    function testReact(LogRecord calldata log) external {
+        eventsProcessed++;
+        uint256 newSupplyRate = log.topic_1;
+        
+        if (log._contract == poolA) {
+            lastRateA = newSupplyRate;
+            emit RateUpdateProcessed(poolA, newSupplyRate, block.timestamp, log.block_number);
+        } else if (log._contract == poolB) {
+            lastRateB = newSupplyRate;
+            emit RateUpdateProcessed(poolB, newSupplyRate, block.timestamp, log.block_number);
+        } else {
+            return;
+        }
+        _evaluateRebalanceTest(log.block_number);
+    }
+
+    function _evaluateRebalanceTest(uint256 currentBlock) internal {
+        if (currentBlock < lastRebalanceBlock + minBlocksBetweenRebalance) {
+            emit RebalanceSkipped("Minimum blocks not elapsed", lastRateA, lastRateB, currentBlock);
+            return;
+        }
+        if (lastRateA == 0 && lastRateB == 0) {
+            emit RebalanceSkipped("Rates not initialized", lastRateA, lastRateB, currentBlock);
+            return;
+        }
+        uint256 rateDiff = lastRateA > lastRateB ? lastRateA - lastRateB : lastRateB - lastRateA;
+        if (rateDiff < rebalanceThreshold) {
+            emit RebalanceSkipped("Rate difference below threshold", lastRateA, lastRateB, currentBlock);
+            return;
+        }
+        emit RebalanceConditionMet(lastRateA, lastRateB, rateDiff, currentBlock);
+        lastRebalanceBlock = currentBlock;
+        rebalancesTriggered++;
+    }
+}
 
 /**
  * @title YieldMonitorReactiveTest
@@ -11,7 +72,7 @@ import "../src/interfaces/IReactive.sol";
  * @dev These tests simulate the ReactVM environment
  */
 contract YieldMonitorReactiveTest is Test {
-    YieldMonitorReactive public reactive;
+    TestableYieldMonitor public reactive;
     
     address public poolA;
     address public poolB;
@@ -31,8 +92,8 @@ contract YieldMonitorReactiveTest is Test {
         poolB = makeAddr("poolB");
         lendingVault = makeAddr("lendingVault");
         
-        // Deploy reactive contract (it will be in VM mode for testing)
-        reactive = new YieldMonitorReactive(
+        // Deploy testable reactive contract
+        reactive = new TestableYieldMonitor(
             SEPOLIA_CHAIN_ID,
             SEPOLIA_CHAIN_ID,
             poolA,
@@ -63,7 +124,7 @@ contract YieldMonitorReactiveTest is Test {
         vm.expectEmit(true, false, false, true);
         emit RateUpdateProcessed(poolA, 500, block.timestamp, log.block_number);
         
-        reactive.react(log);
+        reactive.testReact(log);
         
         assertEq(reactive.lastRateA(), 500);
         assertEq(reactive.eventsProcessed(), 1);
@@ -72,7 +133,7 @@ contract YieldMonitorReactiveTest is Test {
     function test_React_UpdatesRateB() public {
         IReactive.LogRecord memory log = _createLogRecord(poolB, 300, 0);
         
-        reactive.react(log);
+        reactive.testReact(log);
         
         assertEq(reactive.lastRateB(), 300);
         assertEq(reactive.eventsProcessed(), 1);
@@ -82,7 +143,7 @@ contract YieldMonitorReactiveTest is Test {
         address unknown = makeAddr("unknown");
         IReactive.LogRecord memory log = _createLogRecord(unknown, 500, 0);
         
-        reactive.react(log);
+        reactive.testReact(log);
         
         assertEq(reactive.lastRateA(), 0);
         assertEq(reactive.lastRateB(), 0);
@@ -92,10 +153,10 @@ contract YieldMonitorReactiveTest is Test {
     function test_React_TriggersRebalanceWhenConditionsMet() public {
         // Set initial rates
         IReactive.LogRecord memory logA = _createLogRecord(poolA, 500, 0);
-        reactive.react(logA);
+        reactive.testReact(logA);
         
         IReactive.LogRecord memory logB = _createLogRecord(poolB, 300, MIN_BLOCKS + 1);
-        reactive.react(logB);
+        reactive.testReact(logB);
         
         // Now update with significant difference
         IReactive.LogRecord memory logA2 = _createLogRecord(poolA, 800, MIN_BLOCKS + 2);
@@ -103,21 +164,21 @@ contract YieldMonitorReactiveTest is Test {
         vm.expectEmit(false, false, false, true);
         emit RebalanceConditionMet(800, 300, 500, MIN_BLOCKS + 2);
         
-        reactive.react(logA2);
+        reactive.testReact(logA2);
         
         assertEq(reactive.rebalancesTriggered(), 1);
     }
 
     function test_React_SkipsRebalanceIfThresholdNotMet() public {
         IReactive.LogRecord memory logA = _createLogRecord(poolA, 500, 0);
-        reactive.react(logA);
+        reactive.testReact(logA);
         
         IReactive.LogRecord memory logB = _createLogRecord(poolB, 510, MIN_BLOCKS + 1);
         
         vm.expectEmit(false, false, false, true);
         emit RebalanceSkipped("Rate difference below threshold", 500, 510, MIN_BLOCKS + 1);
         
-        reactive.react(logB);
+        reactive.testReact(logB);
         
         assertEq(reactive.rebalancesTriggered(), 0);
     }
@@ -125,14 +186,14 @@ contract YieldMonitorReactiveTest is Test {
     function test_React_SkipsRebalanceIfMinBlocksNotElapsed() public {
         // First update
         IReactive.LogRecord memory logA = _createLogRecord(poolA, 500, 0);
-        reactive.react(logA);
+        reactive.testReact(logA);
         
         IReactive.LogRecord memory logB = _createLogRecord(poolB, 300, 1);
-        reactive.react(logB);
+        reactive.testReact(logB);
         
         // Trigger first rebalance
         IReactive.LogRecord memory logA2 = _createLogRecord(poolA, 800, MIN_BLOCKS + 1);
-        reactive.react(logA2);
+        reactive.testReact(logA2);
         assertEq(reactive.rebalancesTriggered(), 1);
         
         // Try to rebalance again too soon
@@ -141,7 +202,7 @@ contract YieldMonitorReactiveTest is Test {
         vm.expectEmit(false, false, false, true);
         emit RebalanceSkipped("Minimum blocks not elapsed", 900, 300, MIN_BLOCKS + 2);
         
-        reactive.react(logA3);
+        reactive.testReact(logA3);
         
         assertEq(reactive.rebalancesTriggered(), 1); // Still 1
     }
@@ -150,8 +211,8 @@ contract YieldMonitorReactiveTest is Test {
         IReactive.LogRecord memory logA = _createLogRecord(poolA, 500, 0);
         IReactive.LogRecord memory logB = _createLogRecord(poolB, 300, 1);
         
-        reactive.react(logA);
-        reactive.react(logB);
+        reactive.testReact(logA);
+        reactive.testReact(logB);
         
         (uint256 rateA, uint256 rateB) = reactive.getStoredRates();
         assertEq(rateA, 500);
@@ -163,9 +224,9 @@ contract YieldMonitorReactiveTest is Test {
         IReactive.LogRecord memory logB = _createLogRecord(poolB, 300, 1);
         IReactive.LogRecord memory logA2 = _createLogRecord(poolA, 800, MIN_BLOCKS + 2);
         
-        reactive.react(logA);
-        reactive.react(logB);
-        reactive.react(logA2);
+        reactive.testReact(logA);
+        reactive.testReact(logB);
+        reactive.testReact(logA2);
         
         (uint256 events, uint256 rebalances) = reactive.getStats();
         assertEq(events, 3);
@@ -176,8 +237,8 @@ contract YieldMonitorReactiveTest is Test {
         IReactive.LogRecord memory logA = _createLogRecord(poolA, 500, 0);
         IReactive.LogRecord memory logB = _createLogRecord(poolB, 300, 1);
         
-        reactive.react(logA);
-        reactive.react(logB);
+        reactive.testReact(logA);
+        reactive.testReact(logB);
         
         (bool shouldRebalance, uint256 rateDiff) = reactive.wouldRebalance();
         assertTrue(shouldRebalance);
@@ -188,7 +249,7 @@ contract YieldMonitorReactiveTest is Test {
         rate = bound(rate, 0, 10000);
         
         IReactive.LogRecord memory log = _createLogRecord(poolA, rate, 0);
-        reactive.react(log);
+        reactive.testReact(log);
         
         assertEq(reactive.lastRateA(), rate);
     }

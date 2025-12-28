@@ -34,8 +34,8 @@ contract DeployReactive is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        // Deploy YieldMonitorReactive with some ETH for callbacks
-        YieldMonitorReactive reactive = new YieldMonitorReactive{value: 0.1 ether}(
+        // Deploy YieldMonitorReactive
+        YieldMonitorReactive reactive = new YieldMonitorReactive(
             SEPOLIA_CHAIN_ID,  // origin chain
             SEPOLIA_CHAIN_ID,  // destination chain (same for this demo)
             poolA,

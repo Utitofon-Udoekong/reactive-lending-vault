@@ -274,16 +274,18 @@ contract LendingVaultTest is Test {
 
         poolB.updateRates(800, 1000, 7000);
 
-        (bool canRebal, string memory reason) = vault.canRebalance();
-        assertTrue(canRebal, "Should be able to rebalance initially");
+        // First warp past initial cooldown
+        vm.warp(block.timestamp + REBALANCE_COOLDOWN + 1);
+
+        (bool canRebal, ) = vault.canRebalance();
+        assertTrue(canRebal, "Should be able to rebalance after initial cooldown");
 
         // Execute rebalance
-        vm.warp(block.timestamp + REBALANCE_COOLDOWN + 1);
         vm.prank(reactVM);
         vault.executeRebalance(reactVM);
 
-        // Check again immediately after
-        (canRebal, reason) = vault.canRebalance();
+        // Check again immediately after - should be in cooldown
+        (canRebal, ) = vault.canRebalance();
         assertFalse(canRebal, "Should not be able to rebalance during cooldown");
     }
 
@@ -319,7 +321,9 @@ contract LendingVaultTest is Test {
     // ===== Fuzz Tests =====
 
     function testFuzz_Deposit(uint256 amount) public {
-        amount = bound(amount, vault.MIN_DEPOSIT(), INITIAL_BALANCE);
+        // Ensure minimum deposit is met
+        uint256 minDeposit = vault.MIN_DEPOSIT();
+        amount = bound(amount, minDeposit, INITIAL_BALANCE);
         
         vm.prank(user1);
         uint256 shares = vault.deposit(amount);
@@ -329,7 +333,9 @@ contract LendingVaultTest is Test {
     }
 
     function testFuzz_DepositAndWithdraw(uint256 depositAmount, uint256 withdrawPercent) public {
-        depositAmount = bound(depositAmount, vault.MIN_DEPOSIT(), INITIAL_BALANCE / 2);
+        // Ensure minimum deposit is met
+        uint256 minDeposit = vault.MIN_DEPOSIT();
+        depositAmount = bound(depositAmount, minDeposit, INITIAL_BALANCE / 2);
         withdrawPercent = bound(withdrawPercent, 1, 100);
         
         vm.startPrank(user1);
@@ -368,22 +374,26 @@ contract LendingVaultTest is Test {
         vm.prank(user1);
         vault.deposit(10_000 * 1e18);
 
+        // Wait for initial cooldown
+        vm.warp(block.timestamp + REBALANCE_COOLDOWN + 1);
+
         // First rebalance: favor Pool B
         poolB.updateRates(800, 1000, 7000);
-        vm.warp(block.timestamp + REBALANCE_COOLDOWN + 1);
         vm.prank(reactVM);
         vault.executeRebalance(reactVM);
 
-        (uint256 allocA1, uint256 allocB1) = vault.getAllocation();
+        (uint256 allocA1, ) = vault.getAllocation();
+
+        // Wait for cooldown again
+        vm.warp(block.timestamp + REBALANCE_COOLDOWN + 1);
 
         // Second rebalance: favor Pool A
         poolA.updateRates(1200, 1800, 8000);
         poolB.updateRates(400, 700, 5000);
-        vm.warp(block.timestamp + REBALANCE_COOLDOWN + 1);
         vm.prank(reactVM);
         vault.executeRebalance(reactVM);
 
-        (uint256 allocA2, uint256 allocB2) = vault.getAllocation();
+        (uint256 allocA2, ) = vault.getAllocation();
 
         // Pool A should now have more
         assertGt(allocA2, allocA1, "Pool A should have more after second rebalance");

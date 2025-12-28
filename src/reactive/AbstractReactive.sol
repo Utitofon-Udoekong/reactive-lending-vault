@@ -16,7 +16,7 @@ abstract contract AbstractReactive is IReactive {
 
     /// @notice Address of the Reactive Network system contract
     address internal constant SYSTEM_CONTRACT = 
-        0x0000000000000000000000000000000000FFFFFF;
+        0x0000000000000000000000000000000000fffFfF;
 
     /// @notice Reference to the system contract
     ISystemContract internal service;
