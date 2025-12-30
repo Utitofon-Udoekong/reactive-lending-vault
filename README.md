@@ -71,14 +71,10 @@ reactive-lending-vault/
 │   ├── DeployReactive.s.sol       # Deploy reactive contract to Reactive Network
 │   ├── SetupVault.s.sol           # Setup vault authorization
 │   └── TestWorkflow.s.sol         # Interactive test workflow
-├── test/
-│   ├── LendingVault.t.sol         # Vault tests
-│   ├── MockLendingPool.t.sol      # Pool tests
-│   └── YieldMonitorReactive.t.sol # Reactive contract tests
-└── docs/
-    ├── DESIGN.md                  # Detailed design documentation
-    ├── THREAT_MODEL.md            # Security analysis
-    └── WORKFLOW.md                # Step-by-step workflow with tx hashes
+└── test/
+    ├── LendingVault.t.sol         # Vault tests
+    ├── MockLendingPool.t.sol      # Pool tests
+    └── YieldMonitorReactive.t.sol # Reactive contract tests
 ```
 
 ## 🚀 Getting Started
@@ -237,11 +233,19 @@ forge script script/TestWorkflow.s.sol:TestWorkflow \
 
 ## 🔐 Security Considerations
 
-See [THREAT_MODEL.md](docs/THREAT_MODEL.md) for detailed security analysis.
+### Threat Model
 
-Key security features:
+| Threat | Mitigation |
+|--------|------------|
+| Unauthorized rebalance | Only authorized ReactVM can call `executeRebalance()` |
+| Flash loan attacks | Cooldown period prevents rapid rebalancing |
+| Rate manipulation | Threshold prevents micro-arbitrage exploitation |
+| Reentrancy | All external functions use `nonReentrant` modifier |
+| Fund extraction | Only depositors can withdraw their shares |
+
+### Key Security Features
 - **ReactVM Authorization**: Only the authorized ReactVM can trigger rebalances
-- **Cooldown Period**: Prevents rapid-fire rebalancing attacks
+- **Cooldown Period**: Prevents rapid-fire rebalancing attacks  
 - **Threshold Requirement**: Prevents unnecessary rebalances for small rate changes
 - **Reentrancy Protection**: All external functions protected with `nonReentrant`
 - **Owner Controls**: Emergency functions for pausing and recovery
@@ -250,26 +254,36 @@ Key security features:
 
 [Watch the 5-minute demo video explaining the design, threat model, and trade-offs]
 
-## 📜 Contract Addresses
+## 📜 Deployed Contracts
 
-### Ethereum Sepolia
-
-| Contract | Address |
-|----------|---------|
-| MockToken | `0x...` |
-| Pool A | `0x...` |
-| Pool B | `0x...` |
-| LendingVault | `0x...` |
-
-### Reactive Lasna Testnet
+### Ethereum Sepolia (Chain ID: 11155111)
 
 | Contract | Address |
-|----------|---------|
-| YieldMonitorReactive | `0x...` |
+|----------|---------|  
+| MockToken | `0x7069d29c5fD16280ed972Cf1931b852425D11207` |
+| Pool A | `0x9297c4A7c171566149763463288BdE43670663A6` |
+| Pool B | `0x2916d116C9042A7EF88f462111c011403Db77D7C` |
+| LendingVault | `0xDe77B417f9102079f3BA3AE16c69226140E8dc9b` |
+
+### Reactive Lasna Testnet (Chain ID: 5318007)
+
+| Contract | Address |
+|----------|---------|  
+| YieldMonitorReactive | `0x110280ee8Ec014db728Bf42dC9275d23138E2C7d` |
+
+**ReactVM ID:** `0xabBce9E834eB1c61CDbE7225be03987a8945BCbC`
 
 ## 📝 Transaction Hashes
 
-See [WORKFLOW.md](docs/WORKFLOW.md) for complete transaction history.
+| Action | Tx Hash | Network |
+|--------|---------|---------|  
+| Deploy Origin Contracts | `0x401a2eb3980ce8381ed2b4e01a0290c834e0d38c2cfa5f901f9d549a1fbe5d01` | Sepolia |
+| Deploy Reactive Contract | `0x7982a37b6f7c928ec5d70dea7f0da0d3911860e2542820ea512581b59ccd2c77` | Reactive |
+| Setup Vault Authorization | `0xbd5455fe435506911815f88103dfff991ef4570836d363a69f730754d374a25c` | Sepolia |
+
+**Block Explorers:**
+- Sepolia: https://sepolia.etherscan.io
+- Reactive: https://lasna.reactscan.net
 
 ## 🤔 Why Reactive Contracts?
 

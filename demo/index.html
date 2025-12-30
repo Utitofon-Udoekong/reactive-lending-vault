@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reactive Lending Vault - Demo Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #0f0f23 100%);
+            min-height: 100vh;
+            color: #e0e0e0;
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #00d4ff, #7c3aed, #f472b6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+        
+        .subtitle {
+            color: #888;
+            font-size: 1.1rem;
+        }
+        
+        .network-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            margin: 0.25rem;
+            font-weight: 600;
+        }
+        
+        .sepolia { background: #627eea33; color: #627eea; border: 1px solid #627eea55; }
+        .reactive { background: #f472b633; color: #f472b6; border: 1px solid #f472b655; }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        
+        .stat {
+            margin-bottom: 1rem;
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #00d4ff;
+        }
+        
+        .stat-value.green { color: #10b981; }
+        .stat-value.purple { color: #a855f7; }
+        .stat-value.pink { color: #f472b6; }
+        
+        .rate-comparison {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: rgba(0, 212, 255, 0.1);
+            border-radius: 12px;
+            margin-top: 1rem;
+        }
+        
+        .arrow {
+            font-size: 2rem;
+            color: #10b981;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .allocation-bar {
+            height: 20px;
+            background: #1a1a3e;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+        
+        .allocation-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d4ff, #7c3aed);
+            transition: width 0.5s ease;
+        }
+        
+        .address {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.75rem;
+            color: #666;
+            word-break: break-all;
+        }
+        
+        .address a {
+            color: #00d4ff;
+            text-decoration: none;
+        }
+        
+        .address a:hover {
+            text-decoration: underline;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            animation: blink 1.5s infinite;
+        }
+        
+        .status-active { background: #10b981; }
+        .status-pending { background: #f59e0b; }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        .tx-list {
+            margin-top: 1rem;
+        }
+        
+        .tx-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+        }
+        
+        .tx-hash {
+            font-family: 'Fira Code', monospace;
+            color: #00d4ff;
+        }
+        
+        .how-it-works {
+            background: rgba(124, 58, 237, 0.1);
+            border: 1px solid rgba(124, 58, 237, 0.3);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+        
+        .how-it-works h2 {
+            color: #a855f7;
+            margin-bottom: 1rem;
+        }
+        
+        .step {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .step-number {
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(135deg, #7c3aed, #f472b6);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        
+        .step-content h3 {
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .step-content p {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .demo-button {
+            background: linear-gradient(135deg, #7c3aed, #f472b6);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-top: 1rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .demo-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(124, 58, 237, 0.4);
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 3rem;
+            color: #666;
+            font-size: 0.85rem;
+        }
+        
+        footer a {
+            color: #00d4ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚡ Reactive Lending Vault</h1>
+            <p class="subtitle">Automated Cross-Chain Yield Optimization</p>
+            <div style="margin-top: 1rem;">
+                <span class="network-badge sepolia">Ethereum Sepolia</span>
+                <span class="network-badge reactive">Reactive Network</span>
+            </div>
+        </header>
+
+        <div class="grid">
+            <!-- Vault Card -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">🏦 Lending Vault</span>
+                    <span class="network-badge sepolia">Sepolia</span>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Total Value Locked</div>
+                    <div class="stat-value">1,000,000 mUSDC</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Your Shares</div>
+                    <div class="stat-value green">1,000,000</div>
+                </div>
+                <div class="address">
+                    Contract: <a href="https://sepolia.etherscan.io/address/0xDe77B417f9102079f3BA3AE16c69226140E8dc9b" target="_blank">0xDe77B417...E8dc9b</a>
+                </div>
+            </div>
+
+            <!-- Reactive Monitor Card -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">🔄 Yield Monitor</span>
+                    <span class="network-badge reactive">Reactive</span>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Status</div>
+                    <div class="stat-value purple">
+                        <span class="status-indicator status-active"></span>
+                        Monitoring
+                    </div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Events Processed</div>
+                    <div class="stat-value purple" id="events-count">0</div>
+                </div>
+                <div class="address">
+                    Contract: <a href="https://lasna.reactscan.net/address/0x110280ee8Ec014db728Bf42dC9275d23138E2C7d" target="_blank">0x110280ee...8E2C7d</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- Pool A Card -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">🅰️ Pool A</span>
+                    <span class="network-badge sepolia">Sepolia</span>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Supply Rate (APY)</div>
+                    <div class="stat-value" id="pool-a-rate">5.00%</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Vault Allocation</div>
+                    <div class="stat-value green" id="pool-a-alloc">700,000 mUSDC</div>
+                    <div class="allocation-bar">
+                        <div class="allocation-fill" id="pool-a-bar" style="width: 70%;"></div>
+                    </div>
+                </div>
+                <div class="address">
+                    Contract: <a href="https://sepolia.etherscan.io/address/0x9297c4A7c171566149763463288BdE43670663A6" target="_blank">0x9297c4A7...0663A6</a>
+                </div>
+            </div>
+
+            <!-- Pool B Card -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">🅱️ Pool B</span>
+                    <span class="network-badge sepolia">Sepolia</span>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Supply Rate (APY)</div>
+                    <div class="stat-value" id="pool-b-rate">3.00%</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Vault Allocation</div>
+                    <div class="stat-value pink" id="pool-b-alloc">300,000 mUSDC</div>
+                    <div class="allocation-bar">
+                        <div class="allocation-fill" id="pool-b-bar" style="width: 30%; background: linear-gradient(90deg, #f472b6, #a855f7);"></div>
+                    </div>
+                </div>
+                <div class="address">
+                    Contract: <a href="https://sepolia.etherscan.io/address/0x2916d116C9042A7EF88f462111c011403Db77D7C" target="_blank">0x2916d116...77D7C</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rate Comparison -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">📊 Rate Comparison & Rebalance Status</span>
+            </div>
+            <div class="rate-comparison">
+                <div style="flex: 1; text-align: center;">
+                    <div class="stat-label">Pool A Rate</div>
+                    <div class="stat-value" id="compare-a">5.00%</div>
+                </div>
+                <div class="arrow" id="rebalance-arrow">→</div>
+                <div style="flex: 1; text-align: center;">
+                    <div class="stat-label">Pool B Rate</div>
+                    <div class="stat-value pink" id="compare-b">3.00%</div>
+                </div>
+                <div style="flex: 1; text-align: center; border-left: 1px solid #333; padding-left: 1rem;">
+                    <div class="stat-label">Difference</div>
+                    <div class="stat-value green" id="rate-diff">2.00%</div>
+                </div>
+                <div style="flex: 1; text-align: center;">
+                    <div class="stat-label">Threshold</div>
+                    <div class="stat-value" style="color: #888;">1.00%</div>
+                </div>
+            </div>
+            <p style="margin-top: 1rem; color: #888; text-align: center;" id="rebalance-status">
+                ✅ Currently favoring <strong>Pool A</strong> (higher yield)
+            </p>
+        </div>
+
+        <!-- Transaction History -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">📜 Recent Transactions</span>
+            </div>
+            <div class="tx-list">
+                <div class="tx-item">
+                    <span>Deploy Origin Contracts</span>
+                    <a class="tx-hash" href="https://sepolia.etherscan.io/tx/0x401a2eb3980ce8381ed2b4e01a0290c834e0d38c2cfa5f901f9d549a1fbe5d01" target="_blank">0x401a2e...5d01</a>
+                </div>
+                <div class="tx-item">
+                    <span>Deploy Reactive Contract</span>
+                    <a class="tx-hash" href="https://lasna.reactscan.net/tx/0x7982a37b6f7c928ec5d70dea7f0da0d3911860e2542820ea512581b59ccd2c77" target="_blank">0x7982a3...2c77</a>
+                </div>
+                <div class="tx-item">
+                    <span>Setup Vault Authorization</span>
+                    <a class="tx-hash" href="https://sepolia.etherscan.io/tx/0xbd5455fe435506911815f88103dfff991ef4570836d363a69f730754d374a25c" target="_blank">0xbd5455...a25c</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- How It Works -->
+        <div class="how-it-works">
+            <h2>⚙️ How It Works</h2>
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h3>User Deposits</h3>
+                    <p>User deposits tokens to the LendingVault. Funds are automatically allocated across Pool A and Pool B.</p>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h3>Rate Monitoring</h3>
+                    <p>YieldMonitorReactive on Reactive Network subscribes to RateUpdated events from both pools.</p>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h3>Condition Check</h3>
+                    <p>When rates change, the reactive contract checks if the difference exceeds the 1% threshold.</p>
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <h3>Automatic Rebalance</h3>
+                    <p>If threshold is met, a callback triggers executeRebalance() on the vault, moving funds to the higher-yield pool.</p>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Built with 💜 using <a href="https://reactive.network" target="_blank">Reactive Network</a></p>
+            <p style="margin-top: 0.5rem;">
+                <a href="https://github.com/your-username/reactive-lending-vault" target="_blank">GitHub</a> •
+                ReactVM ID: 0xabBce9E834eB1c61CDbE7225be03987a8945BCbC
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        // Simulate live updates (for demo purposes)
+        let eventsCount = 0;
+        
+        setInterval(() => {
+            eventsCount++;
+            document.getElementById('events-count').textContent = eventsCount;
+        }, 5000);
+    </script>
+</body>
+</html>
