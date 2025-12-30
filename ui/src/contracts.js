@@ -31,7 +31,7 @@ export const POOL_ABI = [
     "function getSupplyRate() view returns (uint256)",
     "function getBorrowRate() view returns (uint256)",
     "function totalDeposits() view returns (uint256)",
-    "function updateRates(uint256 newSupplyRate, uint256 newBorrowRate)",
+    "function updateRates(uint256 _supplyRate, uint256 _borrowRate, uint256 _utilization)",
     "event RateUpdated(uint256 supplyRate, uint256 borrowRate, uint256 timestamp)"
 ];
 
@@ -41,13 +41,16 @@ export const VAULT_ABI = [
     "function sharesOf(address account) view returns (uint256)",
     "function totalAssets() view returns (uint256)",
     "function totalShares() view returns (uint256)",
-    "function poolABalance() view returns (uint256)",
-    "function poolBBalance() view returns (uint256)",
+    "function getAllocation() view returns (uint256 poolAAlloc, uint256 poolBAlloc)",
     "function canRebalance() view returns (bool canRebal, string memory reason)",
-    "function executeRebalance(uint256 rateA, uint256 rateB, uint256 rateDiff)",
+    "function executeRebalance(address rvmId)",
     "function lastRebalanceTime() view returns (uint256)",
     "function rebalanceThreshold() view returns (uint256)",
+    "function rebalancePercentage() view returns (uint256)",
+    "function rebalanceCooldown() view returns (uint256)",
     "function authorizedReactVM() view returns (address)",
+    "function setRebalancePercentage(uint256 _percentage)",
+    "function setRebalanceThreshold(uint256 _threshold)",
     "event Deposit(address indexed user, uint256 amount, uint256 shares)",
     "event Withdraw(address indexed user, uint256 amount, uint256 shares)",
     "event Rebalance(address indexed fromPool, address indexed toPool, uint256 amount, uint256 rateA, uint256 rateB)"

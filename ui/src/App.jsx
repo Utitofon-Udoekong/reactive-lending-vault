@@ -79,6 +79,11 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState({ type: '', message: '' });
 
+  // Vault settings state
+  const [rebalancePct, setRebalancePct] = useState('50');
+  const [rebalanceThreshold, setRebalanceThreshold] = useState('100');
+  const [newRebalancePct, setNewRebalancePct] = useState('');
+
   const connectWallet = async () => {
     try {
       if (!window.ethereum) {
@@ -114,18 +119,29 @@ function App() {
   };
 
   const fetchData = useCallback(async () => {
+    // Don't fetch if not on Sepolia
+    if (chainId !== CHAINS.SEPOLIA) return;
     if (!account || !tokenContract || !vaultContract || !poolAContract || !poolBContract) return;
+
     try {
-      const [balance, shares, rateA, rateB, balA, balB, assets, allow] = await Promise.all([
-        tokenContract.balanceOf(account),
-        vaultContract.sharesOf(account),
-        poolAContract.getSupplyRate(),
-        poolBContract.getSupplyRate(),
-        vaultContract.poolABalance(),
-        vaultContract.poolBBalance(),
-        vaultContract.totalAssets(),
-        tokenContract.allowance(account, CONTRACTS.VAULT)
-      ]);
+      // Fetch each separately to handle partial failures
+      const balance = await tokenContract.balanceOf(account).catch(() => 0n);
+      const shares = await vaultContract.sharesOf(account).catch(() => 0n);
+      const rateA = await poolAContract.getSupplyRate().catch(() => 500n);
+      const rateB = await poolBContract.getSupplyRate().catch(() => 300n);
+      const assets = await vaultContract.totalAssets().catch(() => 0n);
+      const allow = await tokenContract.allowance(account, CONTRACTS.VAULT).catch(() => 0n);
+
+      // Get pool allocations (returns [poolAAlloc, poolBAlloc])
+      let balA = 0n, balB = 0n;
+      try {
+        const allocation = await vaultContract.getAllocation();
+        balA = allocation[0];
+        balB = allocation[1];
+      } catch {
+        // Fallback if getAllocation fails
+      }
+
       setTokenBalance(formatUnits(balance, 18));
       setUserShares(formatUnits(shares, 18));
       setPoolARate((Number(rateA) / 100).toFixed(2));
@@ -134,18 +150,29 @@ function App() {
       setPoolBBalance(formatUnits(balB, 18));
       setTotalAssets(formatUnits(assets, 18));
       setAllowance(formatUnits(allow, 18));
+
+      // Fetch vault settings
+      try {
+        const pct = await vaultContract.rebalancePercentage();
+        const threshold = await vaultContract.rebalanceThreshold();
+        setRebalancePct((Number(pct) / 100).toFixed(0));
+        setRebalanceThreshold((Number(threshold) / 100).toFixed(2));
+      } catch {
+        // Use defaults if fetch fails
+      }
     } catch (err) {
-      console.error(err);
+      // Silently ignore fetch errors (usually network issues)
+      console.log('Fetch skipped:', err.message?.slice(0, 50));
     }
-  }, [account, tokenContract, vaultContract, poolAContract, poolBContract]);
+  }, [account, chainId, tokenContract, vaultContract, poolAContract, poolBContract]);
 
   useEffect(() => {
-    if (account) {
+    if (account && chainId === CHAINS.SEPOLIA) {
       fetchData();
       const interval = setInterval(fetchData, 5000);
       return () => clearInterval(interval);
     }
-  }, [account, fetchData]);
+  }, [account, chainId, fetchData]);
 
   const handleTx = async (action, fn) => {
     setLoading(true);
@@ -175,16 +202,22 @@ function App() {
   );
 
   const updateRateA = () => handleTx('Rate Update A', () =>
-    poolAContract.updateRates(Number(newRateA) * 100, Number(newRateA) * 150)
+    poolAContract.updateRates(Number(newRateA) * 100, Number(newRateA) * 150, 5000)
   );
 
   const updateRateB = () => handleTx('Rate Update B', () =>
-    poolBContract.updateRates(Number(newRateB) * 100, Number(newRateB) * 150)
+    poolBContract.updateRates(Number(newRateB) * 100, Number(newRateB) * 150, 5000)
   );
 
   const getFaucetTokens = () => handleTx('Faucet', () =>
     tokenContract.faucet(parseUnits('1000', 18))
   );
+
+  const updateRebalancePct = () => handleTx('Set Rebalance %', async () => {
+    // Convert percentage (0-100) to basis points (0-10000)
+    const bps = Number(newRebalancePct) * 100;
+    return vaultContract.setRebalancePercentage(bps);
+  });
 
   const rateDiff = Math.abs(Number(poolARate) - Number(poolBRate)).toFixed(2);
   const higherPool = Number(poolARate) > Number(poolBRate) ? 'A' : 'B';
@@ -214,6 +247,14 @@ function App() {
               {chainId !== CHAINS.SEPOLIA && (
                 <button onClick={switchNetwork} className="btn warn">SWITCH_NETWORK</button>
               )}
+              <button onClick={() => {
+                setAccount(null);
+                setTokenContract(null);
+                setVaultContract(null);
+                setPoolAContract(null);
+                setPoolBContract(null);
+                setStatus({ type: 'info', message: '> DISCONNECTED: Wallet unlinked' });
+              }} className="btn">DISCONNECT</button>
             </div>
           )}
         </header>
@@ -221,6 +262,12 @@ function App() {
         {status.message && (
           <div className={`terminal-output ${status.type}`}>
             {status.message}
+          </div>
+        )}
+
+        {account && chainId !== CHAINS.SEPOLIA && (
+          <div className="terminal-output error">
+            {"> ERROR: Wrong network! Please switch to Sepolia (Chain ID: 11155111)"}
           </div>
         )}
 
@@ -274,6 +321,10 @@ function App() {
             <div className="allocation-bar">
               <div className="bar-a" style={{ width: `${pctA}%` }}>{pctA}%</div>
               <div className="bar-b" style={{ width: `${pctB}%` }}>{pctB}%</div>
+            </div>
+            <div className="pool-balances">
+              <span>POOL_A: {Number(poolABalance).toLocaleString()} mUSDC</span>
+              <span>POOL_B: {Number(poolBBalance).toLocaleString()} mUSDC</span>
             </div>
             <p className="status-text">
               {Number(rateDiff) >= 1
@@ -347,6 +398,40 @@ function App() {
                   SET
                 </button>
               </div>
+            </div>
+          </section>
+
+          {/* Vault Settings */}
+          <section className="settings-section">
+            <h2>{"<VAULT_SETTINGS/>"}</h2>
+            <p className="hint">Configure rebalancing behavior (Owner only)</p>
+            <div className="settings-grid">
+              <div className="setting-item">
+                <span className="setting-label">REBALANCE_PCT</span>
+                <span className="setting-value">{rebalancePct}%</span>
+              </div>
+              <div className="setting-item">
+                <span className="setting-label">THRESHOLD</span>
+                <span className="setting-value">{rebalanceThreshold}%</span>
+              </div>
+            </div>
+            <div className="input-row" style={{ marginTop: '1rem' }}>
+              <span>NEW_PCT:</span>
+              <input
+                type="number"
+                placeholder="0-100"
+                min="0"
+                max="100"
+                value={newRebalancePct}
+                onChange={(e) => setNewRebalancePct(e.target.value)}
+              />
+              <button
+                onClick={updateRebalancePct}
+                disabled={loading || !newRebalancePct || Number(newRebalancePct) < 0 || Number(newRebalancePct) > 100}
+                className="btn"
+              >
+                SET
+              </button>
             </div>
           </section>
 
