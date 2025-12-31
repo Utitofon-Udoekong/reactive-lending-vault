@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "./AbstractReactive.sol";
+// Use official reactive-lib instead of custom implementation
+import "reactive-lib/abstract-base/AbstractReactive.sol";
 import "../interfaces/ILendingPool.sol";
 
 /**
@@ -9,13 +10,13 @@ import "../interfaces/ILendingPool.sol";
  * @notice Reactive Smart Contract for Cross-Chain Lending Vault Automation
  * @dev This contract monitors RateUpdated events from lending pools and triggers
  *      rebalancing when yield conditions warrant it.
- * 
+ *
  * Architecture:
  * - Deployed on Reactive Network (Lasna Testnet or Mainnet)
  * - Subscribes to RateUpdated events from Pool A and Pool B on origin chain
  * - When rates change, evaluates if rebalancing is beneficial
  * - Emits Callback event to trigger executeRebalance() on destination vault
- * 
+ *
  * How it works:
  * 1. Pool A or Pool B emits RateUpdated event when rates change
  * 2. Reactive Network captures the event and calls react() on this contract
@@ -24,13 +25,12 @@ import "../interfaces/ILendingPool.sol";
  * 5. Reactive Network executes the callback on the destination vault
  */
 contract YieldMonitorReactive is AbstractReactive {
-    
     // ===== Constants =====
-    
+
     /// @notice Event signature for RateUpdated(uint256,uint256,uint256)
     /// @dev keccak256("RateUpdated(uint256,uint256,uint256)")
-    uint256 public constant RATE_UPDATED_TOPIC = 
-        0x9b96a8e9a6d9f0e7c0e7024c9f1b9f0e7c0e7024c9f1b9f0e7c0e7024c9f1b9f;
+    uint256 public constant RATE_UPDATED_TOPIC =
+        0xa387c3601f61e88a17e341cfebf7ab826a8cd4544cd72b2dc0cf12988e77754b;
 
     /// @notice Gas limit for callback transactions
     uint64 public constant CALLBACK_GAS_LIMIT = 1000000;
@@ -72,6 +72,9 @@ contract YieldMonitorReactive is AbstractReactive {
 
     /// @notice Counter for rebalances triggered
     uint256 public rebalancesTriggered;
+
+    /// @notice Contract owner (deployer) for emergency withdrawals
+    address public immutable owner;
 
     // ===== Events =====
 
@@ -131,30 +134,36 @@ contract YieldMonitorReactive is AbstractReactive {
         lendingVault = _lendingVault;
         rebalanceThreshold = _rebalanceThreshold;
         minBlocksBetweenRebalance = _minBlocksBetweenRebalance;
+        owner = msg.sender;
 
-        // Subscribe to RateUpdated events from both pools
-        // Only subscribe if we're on Reactive Network (not in ReactVM)
-        if (!vm) {
-            // Subscribe to all events from Pool A
-            service.subscribe(
-                originChainId,
-                _poolA,
-                REACTIVE_IGNORE, // Any topic_0 (we'll filter in react)
-                REACTIVE_IGNORE,
-                REACTIVE_IGNORE,
-                REACTIVE_IGNORE
-            );
+        // Note: Subscriptions are set up separately via setupSubscriptions()
+        // This avoids constructor failures on Reactive Network
+    }
 
-            // Subscribe to all events from Pool B
-            service.subscribe(
-                originChainId,
-                _poolB,
-                REACTIVE_IGNORE,
-                REACTIVE_IGNORE,
-                REACTIVE_IGNORE,
-                REACTIVE_IGNORE
-            );
-        }
+    /// @notice Set up event subscriptions (call after deployment on Reactive Network)
+    /// @dev Only callable by owner, only on Reactive Network (not in ReactVM)
+    function setupSubscriptions() external rnOnly {
+        require(msg.sender == owner, "Only owner");
+
+        // Subscribe to all events from Pool A
+        service.subscribe(
+            originChainId,
+            poolA,
+            REACTIVE_IGNORE,
+            REACTIVE_IGNORE,
+            REACTIVE_IGNORE,
+            REACTIVE_IGNORE
+        );
+
+        // Subscribe to all events from Pool B
+        service.subscribe(
+            originChainId,
+            poolB,
+            REACTIVE_IGNORE,
+            REACTIVE_IGNORE,
+            REACTIVE_IGNORE,
+            REACTIVE_IGNORE
+        );
     }
 
     // ===== React Function =====
@@ -167,19 +176,37 @@ contract YieldMonitorReactive is AbstractReactive {
     function react(LogRecord calldata log) external override vmOnly {
         eventsProcessed++;
 
+        // IMPORTANT: Only process RateUpdated events
+        // updateRates() emits TWO events: RateUpdated and RatesManuallyUpdated
+        // RatesManuallyUpdated has non-indexed params, so topic_1 would be 0
+        // which would overwrite our stored rate incorrectly
+        if (log.topic_0 != RATE_UPDATED_TOPIC) {
+            return; // Skip non-RateUpdated events
+        }
+
         // Parse the rate from the event
         // RateUpdated(uint256 newSupplyRate, uint256 newBorrowRate, uint256 timestamp)
         // topic_1 = newSupplyRate (indexed)
         // topic_2 = newBorrowRate (indexed)
         uint256 newSupplyRate = log.topic_1;
-        
+
         // Update stored rates based on which pool emitted the event
         if (log._contract == poolA) {
             lastRateA = newSupplyRate;
-            emit RateUpdateProcessed(poolA, newSupplyRate, block.timestamp, log.block_number);
+            emit RateUpdateProcessed(
+                poolA,
+                newSupplyRate,
+                block.timestamp,
+                log.block_number
+            );
         } else if (log._contract == poolB) {
             lastRateB = newSupplyRate;
-            emit RateUpdateProcessed(poolB, newSupplyRate, block.timestamp, log.block_number);
+            emit RateUpdateProcessed(
+                poolB,
+                newSupplyRate,
+                block.timestamp,
+                log.block_number
+            );
         } else {
             // Unknown contract, skip
             return;
@@ -219,8 +246,8 @@ contract YieldMonitorReactive is AbstractReactive {
         }
 
         // Calculate rate difference
-        uint256 rateDiff = lastRateA > lastRateB 
-            ? lastRateA - lastRateB 
+        uint256 rateDiff = lastRateA > lastRateB
+            ? lastRateA - lastRateB
             : lastRateB - lastRateA;
 
         // Check if difference exceeds threshold
@@ -235,7 +262,12 @@ contract YieldMonitorReactive is AbstractReactive {
         }
 
         // Conditions met - trigger rebalance!
-        emit RebalanceConditionMet(lastRateA, lastRateB, rateDiff, currentBlock);
+        emit RebalanceConditionMet(
+            lastRateA,
+            lastRateB,
+            rateDiff,
+            currentBlock
+        );
 
         // Build callback payload for executeRebalance(address rvmId)
         // The first argument (address(0)) will be replaced by ReactVM ID
@@ -264,7 +296,11 @@ contract YieldMonitorReactive is AbstractReactive {
      * @return rateA Last known rate from Pool A
      * @return rateB Last known rate from Pool B
      */
-    function getStoredRates() external view returns (uint256 rateA, uint256 rateB) {
+    function getStoredRates()
+        external
+        view
+        returns (uint256 rateA, uint256 rateB)
+    {
         return (lastRateA, lastRateB);
     }
 
@@ -273,10 +309,11 @@ contract YieldMonitorReactive is AbstractReactive {
      * @return _eventsProcessed Total events processed
      * @return _rebalancesTriggered Total rebalances triggered
      */
-    function getStats() external view returns (
-        uint256 _eventsProcessed,
-        uint256 _rebalancesTriggered
-    ) {
+    function getStats()
+        external
+        view
+        returns (uint256 _eventsProcessed, uint256 _rebalancesTriggered)
+    {
         return (eventsProcessed, rebalancesTriggered);
     }
 
@@ -285,9 +322,13 @@ contract YieldMonitorReactive is AbstractReactive {
      * @return shouldRebalance Whether rebalance conditions are met
      * @return rateDiff The current rate difference
      */
-    function wouldRebalance() external view returns (bool shouldRebalance, uint256 rateDiff) {
-        rateDiff = lastRateA > lastRateB 
-            ? lastRateA - lastRateB 
+    function wouldRebalance()
+        external
+        view
+        returns (bool shouldRebalance, uint256 rateDiff)
+    {
+        rateDiff = lastRateA > lastRateB
+            ? lastRateA - lastRateB
             : lastRateB - lastRateA;
         shouldRebalance = rateDiff >= rebalanceThreshold;
     }
@@ -295,5 +336,16 @@ contract YieldMonitorReactive is AbstractReactive {
     // ===== Receive Function =====
 
     /// @notice Accept ETH for callback payments
-    receive() external payable {}
+    receive() external payable override(AbstractPayer, IPayer) {}
+
+    // ===== Owner Functions =====
+
+    /// @notice Withdraw ETH from contract (owner only)
+    /// @dev Used to recover funds if contract is no longer needed
+    function withdrawETH() external {
+        require(msg.sender == owner, "Only owner");
+        uint256 balance = address(this).balance;
+        require(balance > 0, "No ETH to withdraw");
+        payable(owner).transfer(balance);
+    }
 }

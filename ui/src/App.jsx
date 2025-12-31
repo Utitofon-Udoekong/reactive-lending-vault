@@ -261,6 +261,7 @@ function App() {
 
         {status.message && (
           <div className={`terminal-output ${status.type}`}>
+            {status.type === 'info' && <span className="spinner"></span>}
             {status.message}
           </div>
         )}
