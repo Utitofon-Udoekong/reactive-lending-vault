@@ -308,6 +308,7 @@ function App() {
       <div className="app">
         <header>
           <div className="logo">
+            <img src="/logo.png" alt="Reactive Vault" className="header-logo" />
             <span className="bracket">[</span>
             <span className="title">REACTIVE VAULT</span>
             <span className="bracket">]</span>

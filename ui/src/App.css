@@ -60,6 +60,16 @@ header {
   font-size: 2rem;
   font-weight: 700;
   margin-bottom: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.header-logo {
+  height: 42px;
+  width: auto;
+  filter: drop-shadow(0 0 5px var(--accent));
 }
 
 .bracket {
