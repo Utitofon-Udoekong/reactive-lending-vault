@@ -304,7 +304,7 @@ Pool rate is updated, emitting the `RateUpdated` event that the Reactive Contrac
 
 | Action | Tx Hash | Network |
 |--------|---------|---------|
-| Update Pool Rate | *Pending user action* | Sepolia |
+| Update Pool Rate | [`0x4fdf5ac43250b214b7ec33bbe26f4df53b3cb2d2ec8b387e0143de8b56318e98`](https://sepolia.etherscan.io/tx/0x4fdf5ac43250b214b7ec33bbe26f4df53b3cb2d2ec8b387e0143de8b56318e98) | Sepolia |
 
 ### Step 7: Reactive Contract Processes Event (Reactive Transaction)
 
@@ -312,7 +312,9 @@ The Reactive Network captures the event, executes the `react()` function, and em
 
 | Action | Explorer |
 |--------|----------|
-| React to Event | [View on ReactScan](https://lasna.reactscan.net/address/0xabbce9e834eb1c61cdbe7225be03987a8945bcbc) |
+| React to Event | [View on ReactScan](https://lasna.reactscan.net/address/0xabbce9e834eb1c61cdbe7225be03987a8945bcbc/59) |
+
+*Note: Transaction index 59 on Lasna Testnet.*
 
 ### Step 8: Callback Execution (Destination Transaction)
 
@@ -320,7 +322,7 @@ The Reactive Network delivers the callback to execute `executeRebalance()` on th
 
 | Action | Tx Hash | Network |
 |--------|---------|---------|
-| Execute Rebalance | *Triggered by callback* | Sepolia |
+| Execute Rebalance | [`0x001a61d388d8fc4d977faf0cfc889c76d0c437e63372fb7886ed0d8ec408f30d`](https://sepolia.etherscan.io/tx/0x001a61d388d8fc4d977faf0cfc889c76d0c437e63372fb7886ed0d8ec408f30d) | Sepolia |
 
 **Block Explorers:**
 - **Sepolia:** https://sepolia.etherscan.io
