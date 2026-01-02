@@ -631,12 +631,11 @@ footer a:hover {
 
 .spinner {
   display: inline-block;
-  width: 12px;
-  height: 12px;
-  border: 2px solid rgba(0, 255, 170, 0.3);
-  border-top: 2px solid var(--accent);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
+  width: 14px;
+  height: 14px;
+  background: var(--accent);
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  animation: hexPulse 0.6s ease-in-out infinite;
   margin-right: 0.5rem;
   vertical-align: middle;
 }
@@ -644,7 +643,21 @@ footer a:hover {
 .spinner-large {
   width: 24px;
   height: 24px;
-  border-width: 3px;
   margin: 0 auto;
   display: block;
+}
+
+@keyframes hexPulse {
+
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 8px var(--accent);
+  }
 }

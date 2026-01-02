@@ -236,20 +236,20 @@ forge script script/TestWorkflow.s.sol:TestWorkflow \
 
 | Contract | Address | Role |
 |----------|---------|------|
-| MockToken (mUSDC) | `0xf4CD5a8E1333D7b2bb01653B87bc4379BF467c9F` | ERC20 Token |
-| Pool A | `0xB67d0c4bB0B04A6132a50EBbC9151093dE7B2a05` | Origin (emits events) |
-| Pool B | `0x2D64e2fe12090773A549c56aA20aea5bA0905a8C` | Origin (emits events) |
-| LendingVault | `0xCC38e9E04942a99526688Bde976b5cc26D34db17` | Destination (receives callbacks) |
+| MockToken (mUSDC) | [`0xd9414ec336f0a7cc5932e48c023fa063aa783e79`](https://sepolia.etherscan.io/address/0xd9414ec336f0a7cc5932e48c023fa063aa783e79) | ERC20 Token |
+| Pool A | [`0x75b43879d502244290e2a3e3f548d419deafbc10`](https://sepolia.etherscan.io/address/0x75b43879d502244290e2a3e3f548d419deafbc10) | Origin (emits RateUpdated events) |
+| Pool B | [`0x3e7a5146e71977c9cbeee16e2ad8e2a41b92c58d`](https://sepolia.etherscan.io/address/0x3e7a5146e71977c9cbeee16e2ad8e2a41b92c58d) | Origin (emits RateUpdated events) |
+| LendingVault | [`0x7e3201c3f38214d5a23b1e62de4196c3efc1bad2`](https://sepolia.etherscan.io/address/0x7e3201c3f38214d5a23b1e62de4196c3efc1bad2) | Destination (receives callbacks) |
 
 ### Reactive Network Lasna Testnet (Chain ID: 5318007)
 
 | Contract | Address | Role |
 |----------|---------|------|
-| YieldMonitorReactive | `0x3B7B648e90c8b9c8173315b96C1FEE4CB604924a` | Reactive Contract |
+| YieldMonitorReactive | [`0x878d0819a92B887a2851d817CA30ABc7857d6603`](https://lasna.reactscan.net/address/0x878d0819a92B887a2851d817CA30ABc7857d6603) | Reactive Contract |
 
 **ReactVM ID (Deployer Address):** `0xabBce9E834eB1c61CDbE7225be03987a8945BCbC`
 
-> **Note:** The ReactVM ID is the deployer's wallet address. This is because all contracts deployed by the same address share a single ReactVM instance on the Reactive Network.
+> **Note:** The ReactVM ID is the deployer's wallet address. All contracts deployed by the same address share a single ReactVM instance on the Reactive Network. The Callback Proxy injects this address into callback payloads for authorization.
 
 ## 📝 Step-by-Step Workflow & Transaction Hashes
 
@@ -259,78 +259,68 @@ This section documents the complete workflow execution with transaction hashes f
 
 Deployed MockToken, Pool A, Pool B, and LendingVault to Ethereum Sepolia.
 
-| Contract | Deploy Tx Hash |
+| Contract | Explorer Link |
 |----------|---------------|
-| MockToken | [View on Etherscan](https://sepolia.etherscan.io/address/0xf4CD5a8E1333D7b2bb01653B87bc4379BF467c9F) |
-| Pool A | [View on Etherscan](https://sepolia.etherscan.io/address/0xB67d0c4bB0B04A6132a50EBbC9151093dE7B2a05) |
-| Pool B | [View on Etherscan](https://sepolia.etherscan.io/address/0x2D64e2fe12090773A549c56aA20aea5bA0905a8C) |
-| LendingVault | [View on Etherscan](https://sepolia.etherscan.io/address/0xCC38e9E04942a99526688Bde976b5cc26D34db17) |
+| MockToken | [View on Etherscan](https://sepolia.etherscan.io/address/0xd9414ec336f0a7cc5932e48c023fa063aa783e79) |
+| Pool A | [View on Etherscan](https://sepolia.etherscan.io/address/0x75b43879d502244290e2a3e3f548d419deafbc10) |
+| Pool B | [View on Etherscan](https://sepolia.etherscan.io/address/0x3e7a5146e71977c9cbeee16e2ad8e2a41b92c58d) |
+| LendingVault | [View on Etherscan](https://sepolia.etherscan.io/address/0x7e3201c3f38214d5a23b1e62de4196c3efc1bad2) |
 
 ### Step 2: Deploy Reactive Contract (Lasna)
 
-Deployed YieldMonitorReactive to Reactive Network Lasna Testnet.
+Deployed YieldMonitorReactive to Reactive Network Lasna Testnet with 0.1 ETH for callbacks.
 
-| Action | Tx Hash | Explorer |
-|--------|---------|----------|
-| Deploy YieldMonitorReactive | `0x...` | [ReactScan](https://lasna.reactscan.net/address/0x3B7B648e90c8b9c8173315b96C1FEE4CB604924a) |
+| Action | Explorer |
+|--------|----------|
+| Deploy YieldMonitorReactive | [View on ReactScan](https://lasna.reactscan.net/address/0x878d0819a92B887a2851d817CA30ABc7857d6603) |
 
-### Step 3: Setup Subscriptions (Lasna)
+### Step 3: Authorize ReactVM on Vault (Sepolia)
 
-Called `setupSubscriptions()` to subscribe to RateUpdated events from Pool A and Pool B.
-
-| Action | Tx Hash | Network |
-|--------|---------|---------|
-| Setup Subscriptions | `0x...` | Reactive Lasna |
-
-### Step 4: Authorize ReactVM on Vault (Sepolia)
-
-Updated the LendingVault to authorize the ReactVM ID (deployer address).
+Updated the LendingVault to authorize the ReactVM ID (deployer address) for callbacks.
 
 | Action | Tx Hash | Network |
 |--------|---------|---------|
-| Set Authorized ReactVM | `0x00f03c5e7376d5517e71c59e025137c454615aa4d889c93076a8860c2d7eb1c4` | [Sepolia](https://sepolia.etherscan.io/tx/0x00f03c5e7376d5517e71c59e025137c454615aa4d889c93076a8860c2d7eb1c4) |
+| Set Authorized ReactVM | [`0xe5c6319594ddf999433ee8056058b4a965cf25edb0c031cde38e0ca0ff10b127`](https://sepolia.etherscan.io/tx/0xe5c6319594ddf999433ee8056058b4a965cf25edb0c031cde38e0ca0ff10b127) | Sepolia |
 
-### Step 5: Fund Reactive Contract (Lasna)
+### Step 4: Fund Vault with ETH (Sepolia)
 
-Sent ETH to the reactive contract to pay for callback relay fees.
+Sent ETH to the LendingVault to pay for callback gas costs on the destination chain.
 
 | Action | Tx Hash | Network |
 |--------|---------|---------|
-| Fund Contract (0.1 ETH) | `0x7760a4f7d43ec55940ccb2a6a71f616de3cde52feebabf8924c56fe23dcd7982` | Reactive Lasna |
+| Fund Vault (0.01 ETH) | [`0x6fe53b037cca015138e181f9863144dff0861b100d36c57635566a04be5f0d9d`](https://sepolia.etherscan.io/tx/0x6fe53b037cca015138e181f9863144dff0861b100d36c57635566a04be5f0d9d) | Sepolia |
 
-### Step 6: User Deposits to Vault (Sepolia)
+### Step 5: User Deposits to Vault (Origin Transaction)
 
 User deposits tokens into the vault, which allocates to pools based on current rates.
 
 | Action | Tx Hash | Network |
 |--------|---------|---------|
-| Deposit 10,000 mUSDC | `0x818195dc45c12a33ddab9a13114eed863512e8cbca87205be2e0149ac844f411` | [Sepolia](https://sepolia.etherscan.io/tx/0x818195dc45c12a33ddab9a13114eed863512e8cbca87205be2e0149ac844f411) |
+| Deposit tokens | *Pending user action* | Sepolia |
 
-### Step 7: Trigger Rate Change (Sepolia - Origin Transaction)
+### Step 6: Trigger Rate Change (Origin Transaction)
 
 Pool rate is updated, emitting the `RateUpdated` event that the Reactive Contract monitors.
 
 | Action | Tx Hash | Network |
 |--------|---------|---------|
-| Set Pool B Rate to 15% | `0x42adc27873f3a3b42f453560f8a60ab5667c51431055610770e16d520a88a378` | [Sepolia](https://sepolia.etherscan.io/tx/0x42adc27873f3a3b42f453560f8a60ab5667c51431055610770e16d520a88a378) |
+| Update Pool Rate | *Pending user action* | Sepolia |
 
-### Step 8: Reactive Contract Processes Event (Reactive Transaction)
+### Step 7: Reactive Contract Processes Event (Reactive Transaction)
 
-The Reactive Network captures the event and executes the `react()` function.
+The Reactive Network captures the event, executes the `react()` function, and emits a `Callback` event.
 
-| Action | Tx Hash | Network |
-|--------|---------|---------|
-| React to Event | [View on ReactScan](https://lasna.reactscan.net/address/0xabbce9e834eb1c61cdbe7225be03987a8945bcbc) | Reactive Lasna |
+| Action | Explorer |
+|--------|----------|
+| React to Event | [View on ReactScan](https://lasna.reactscan.net/address/0xabbce9e834eb1c61cdbe7225be03987a8945bcbc) |
 
-### Step 9: Callback Execution (Destination Transaction)
+### Step 8: Callback Execution (Destination Transaction)
 
 The Reactive Network delivers the callback to execute `executeRebalance()` on the vault.
 
 | Action | Tx Hash | Network |
 |--------|---------|---------|
-| Execute Rebalance | `0x607c74fe17dc5a3ea32b567082325466012a15e28fcf2e9eb7e70fff69f57eaf` | [Sepolia](https://sepolia.etherscan.io/tx/0x607c74fe17dc5a3ea32b567082325466012a15e28fcf2e9eb7e70fff69f57eaf) |
-
-✅ **Funds successfully moved from Pool A → Pool B based on yield difference!**
+| Execute Rebalance | *Triggered by callback* | Sepolia |
 
 **Block Explorers:**
 - **Sepolia:** https://sepolia.etherscan.io

@@ -15,7 +15,7 @@ import "../interfaces/ILendingVault.sol";
  *      Users deposit funds here, and the vault automatically allocates them between
  *      Pool A and Pool B. The Reactive Contract triggers rebalancing when yield
  *      conditions change.
- * 
+ *
  * Architecture:
  * - Users deposit/withdraw through this vault
  * - Vault holds shares in Pool A and Pool B
@@ -65,10 +65,22 @@ contract LendingVault is ILendingVault, Ownable, ReentrancyGuard {
 
     // ===== Events =====
 
-    event AuthorizedReactVMUpdated(address indexed oldRVM, address indexed newRVM);
-    event ThresholdUpdated(uint256 indexed oldThreshold, uint256 indexed newThreshold);
-    event CooldownUpdated(uint256 indexed oldCooldown, uint256 indexed newCooldown);
-    event RebalancePercentageUpdated(uint256 indexed oldPct, uint256 indexed newPct);
+    event AuthorizedReactVMUpdated(
+        address indexed oldRVM,
+        address indexed newRVM
+    );
+    event ThresholdUpdated(
+        uint256 indexed oldThreshold,
+        uint256 indexed newThreshold
+    );
+    event CooldownUpdated(
+        uint256 indexed oldCooldown,
+        uint256 indexed newCooldown
+    );
+    event RebalancePercentageUpdated(
+        uint256 indexed oldPct,
+        uint256 indexed newPct
+    );
 
     // ===== Constructor =====
 
@@ -114,7 +126,9 @@ contract LendingVault is ILendingVault, Ownable, ReentrancyGuard {
      * @param amount The amount of assets to deposit
      * @return shares The vault shares minted
      */
-    function deposit(uint256 amount) external override nonReentrant returns (uint256 shares) {
+    function deposit(
+        uint256 amount
+    ) external override nonReentrant returns (uint256 shares) {
         require(amount >= MIN_DEPOSIT, "Deposit too small");
 
         // Calculate shares before state changes
@@ -144,7 +158,9 @@ contract LendingVault is ILendingVault, Ownable, ReentrancyGuard {
      * @param shares The shares to redeem
      * @return amount The amount of assets withdrawn
      */
-    function withdraw(uint256 shares) external override nonReentrant returns (uint256 amount) {
+    function withdraw(
+        uint256 shares
+    ) external override nonReentrant returns (uint256 amount) {
         require(shares > 0, "Zero shares");
         require(_shares[msg.sender] >= shares, "Insufficient shares");
 
@@ -207,17 +223,19 @@ contract LendingVault is ILendingVault, Ownable, ReentrancyGuard {
     function totalAssets() public view override returns (uint256) {
         uint256 poolAShares = poolA.sharesOf(address(this));
         uint256 poolBShares = poolB.sharesOf(address(this));
-        
+
         uint256 poolAValue = poolA.convertToAssets(poolAShares);
         uint256 poolBValue = poolB.convertToAssets(poolBShares);
-        
+
         return poolAValue + poolBValue + asset.balanceOf(address(this));
     }
 
     /**
      * @notice Get shares of an account
      */
-    function sharesOf(address account) external view override returns (uint256) {
+    function sharesOf(
+        address account
+    ) external view override returns (uint256) {
         return _shares[account];
     }
 
@@ -226,10 +244,15 @@ contract LendingVault is ILendingVault, Ownable, ReentrancyGuard {
      * @return poolAAlloc Value in Pool A
      * @return poolBAlloc Value in Pool B
      */
-    function getAllocation() external view override returns (uint256 poolAAlloc, uint256 poolBAlloc) {
+    function getAllocation()
+        external
+        view
+        override
+        returns (uint256 poolAAlloc, uint256 poolBAlloc)
+    {
         uint256 poolAShares = poolA.sharesOf(address(this));
         uint256 poolBShares = poolB.sharesOf(address(this));
-        
+
         poolAAlloc = poolA.convertToAssets(poolAShares);
         poolBAlloc = poolB.convertToAssets(poolBShares);
     }
@@ -237,14 +260,23 @@ contract LendingVault is ILendingVault, Ownable, ReentrancyGuard {
     /**
      * @notice Get pool addresses
      */
-    function getPoolAddresses() external view override returns (address, address) {
+    function getPoolAddresses()
+        external
+        view
+        override
+        returns (address, address)
+    {
         return (address(poolA), address(poolB));
     }
 
     /**
      * @notice Get current rates from both pools
      */
-    function getCurrentRates() external view returns (uint256 rateA, uint256 rateB) {
+    function getCurrentRates()
+        external
+        view
+        returns (uint256 rateA, uint256 rateB)
+    {
         rateA = poolA.getSupplyRate();
         rateB = poolB.getSupplyRate();
     }
@@ -283,14 +315,14 @@ contract LendingVault is ILendingVault, Ownable, ReentrancyGuard {
             // 70% to A, 30% to B (favoring higher yield)
             uint256 amountToA = (amount * 70) / 100;
             uint256 amountToB = amount - amountToA;
-            
+
             if (amountToA > 0) poolA.deposit(amountToA);
             if (amountToB > 0) poolB.deposit(amountToB);
         } else {
             // 70% to B, 30% to A
             uint256 amountToB = (amount * 70) / 100;
             uint256 amountToA = amount - amountToB;
-            
+
             if (amountToA > 0) poolA.deposit(amountToA);
             if (amountToB > 0) poolB.deposit(amountToB);
         }
@@ -303,7 +335,7 @@ contract LendingVault is ILendingVault, Ownable, ReentrancyGuard {
     function _withdrawFromPools(uint256 amount) internal {
         uint256 poolAShares = poolA.sharesOf(address(this));
         uint256 poolBShares = poolB.sharesOf(address(this));
-        
+
         uint256 poolAValue = poolA.convertToAssets(poolAShares);
         uint256 poolBValue = poolB.convertToAssets(poolBShares);
         uint256 total = poolAValue + poolBValue;
@@ -428,5 +460,49 @@ contract LendingVault is ILendingVault, Ownable, ReentrancyGuard {
 
         if (poolAShares > 0) poolA.withdraw(poolAShares);
         if (poolBShares > 0) poolB.withdraw(poolBShares);
+    }
+
+    // ===== Callback Payment Functions =====
+
+    /// @notice Callback Proxy address on Sepolia
+    address public constant CALLBACK_PROXY =
+        0xc9f36411C9897e7F959D99ffca2a0Ba7ee0D7bDA;
+
+    /// @notice Allow the contract to receive ETH for paying callback fees
+    receive() external payable {}
+
+    /// @notice Allow the Callback Proxy to pull payment for callback gas costs
+    /// @param amount The amount to pay
+    function pay(uint256 amount) external {
+        require(msg.sender == CALLBACK_PROXY, "Only callback proxy");
+        require(address(this).balance >= amount, "Insufficient ETH balance");
+        (bool success, ) = payable(msg.sender).call{value: amount}("");
+        require(success, "ETH transfer failed");
+    }
+
+    /// @notice Pay outstanding debt to the Callback Proxy
+    /// @dev Anyone can call this to clear the vault's debt
+    function coverDebt() external {
+        // Query debt from callback proxy
+        (bool success, bytes memory data) = CALLBACK_PROXY.call(
+            abi.encodeWithSignature("debt(address)", address(this))
+        );
+        require(success, "Failed to query debt");
+        uint256 debt = abi.decode(data, (uint256));
+
+        require(address(this).balance >= debt, "Insufficient ETH for debt");
+        if (debt > 0) {
+            (bool paid, ) = payable(CALLBACK_PROXY).call{value: debt}("");
+            require(paid, "Debt payment failed");
+        }
+    }
+
+    /// @notice Withdraw ETH from the contract (owner only)
+    /// @param amount Amount to withdraw
+    /// @param to Recipient address
+    function withdrawEth(uint256 amount, address to) external onlyOwner {
+        require(address(this).balance >= amount, "Insufficient ETH");
+        (bool success, ) = payable(to).call{value: amount}("");
+        require(success, "ETH transfer failed");
     }
 }

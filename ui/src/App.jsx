@@ -76,7 +76,7 @@ function App() {
   const [withdrawShares, setWithdrawShares] = useState('');
   const [newRateA, setNewRateA] = useState('');
   const [newRateB, setNewRateB] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loadingAction, setLoadingAction] = useState(null); // Track which action is loading
   const [status, setStatus] = useState({ type: '', message: '' });
 
   // Callback pending state - tracks when rebalance is awaiting cross-chain confirmation
@@ -258,7 +258,7 @@ function App() {
   }, [account, chainId, vaultContract, poolAContract, poolBContract]);
 
   const handleTx = async (action, fn) => {
-    setLoading(true);
+    setLoadingAction(action);
     setStatus({ type: 'info', message: `> PROCESSING: ${action}...` });
     try {
       const tx = await fn();
@@ -269,7 +269,7 @@ function App() {
     } catch (err) {
       setStatus({ type: 'error', message: `> FAILED: ${err.message?.slice(0, 50)}` });
     }
-    setLoading(false);
+    setLoadingAction(null);
   };
 
   const approve = () => handleTx('Token Approval', () =>
@@ -397,8 +397,8 @@ function App() {
             <section className="faucet-section">
               <div className="faucet-content">
                 <span>{">> NEED_TOKENS?"}</span>
-                <button onClick={getFaucetTokens} disabled={loading} className="btn primary">
-                  GET_1000_mUSDC
+                <button onClick={getFaucetTokens} disabled={loadingAction} className="btn primary">
+                  {loadingAction === 'Faucet' ? <><span className="spinner"></span> LOADING...</> : 'GET_1000_mUSDC'}
                 </button>
               </div>
             </section>
@@ -449,8 +449,8 @@ function App() {
             <div className="action-card">
               <h3>{"// DEPOSIT"}</h3>
               {Number(allowance) < 1000 && (
-                <button onClick={approve} disabled={loading} className="btn full">
-                  APPROVE_TOKENS
+                <button onClick={approve} disabled={loadingAction} className="btn full">
+                  {loadingAction === 'Token Approval' ? <><span className="spinner"></span> APPROVING...</> : 'APPROVE_TOKENS'}
                 </button>
               )}
               <div className="input-row">
@@ -460,8 +460,8 @@ function App() {
                   value={depositAmount}
                   onChange={(e) => setDepositAmount(e.target.value)}
                 />
-                <button onClick={deposit} disabled={loading || !depositAmount} className="btn">
-                  EXEC
+                <button onClick={deposit} disabled={loadingAction || !depositAmount} className="btn">
+                  {loadingAction === 'Deposit' ? <span className="spinner"></span> : 'EXEC'}
                 </button>
               </div>
             </div>
@@ -475,8 +475,8 @@ function App() {
                   value={withdrawShares}
                   onChange={(e) => setWithdrawShares(e.target.value)}
                 />
-                <button onClick={withdraw} disabled={loading || !withdrawShares} className="btn">
-                  EXEC
+                <button onClick={withdraw} disabled={loadingAction || !withdrawShares} className="btn">
+                  {loadingAction === 'Withdraw' ? <span className="spinner"></span> : 'EXEC'}
                 </button>
               </div>
             </div>
@@ -494,8 +494,8 @@ function App() {
                   value={newRateA}
                   onChange={(e) => setNewRateA(e.target.value)}
                 />
-                <button onClick={updateRateA} disabled={loading || !newRateA} className="btn">
-                  SET
+                <button onClick={updateRateA} disabled={loadingAction || !newRateA} className="btn">
+                  {loadingAction === 'Rate Update A' ? <span className="spinner"></span> : 'SET'}
                 </button>
               </div>
               <div className="input-row">
@@ -506,8 +506,8 @@ function App() {
                   value={newRateB}
                   onChange={(e) => setNewRateB(e.target.value)}
                 />
-                <button onClick={updateRateB} disabled={loading || !newRateB} className="btn">
-                  SET
+                <button onClick={updateRateB} disabled={loadingAction || !newRateB} className="btn">
+                  {loadingAction === 'Rate Update B' ? <span className="spinner"></span> : 'SET'}
                 </button>
               </div>
             </div>
@@ -539,10 +539,10 @@ function App() {
               />
               <button
                 onClick={updateRebalancePct}
-                disabled={loading || !newRebalancePct || Number(newRebalancePct) < 0 || Number(newRebalancePct) > 100}
+                disabled={loadingAction || !newRebalancePct || Number(newRebalancePct) < 0 || Number(newRebalancePct) > 100}
                 className="btn"
               >
-                SET
+                {loadingAction === 'Set Rebalance %' ? <span className="spinner"></span> : 'SET'}
               </button>
             </div>
           </section>

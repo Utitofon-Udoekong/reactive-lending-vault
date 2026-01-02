@@ -12,7 +12,7 @@ import "../src/destination/LendingVault.sol";
 contract SetupVault is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        
+
         address vaultAddress = vm.envAddress("LENDING_VAULT_ADDRESS");
         address reactVMId = vm.envAddress("REACTVM_ID"); // Deployer address on Reactive Network
 
@@ -22,9 +22,9 @@ contract SetupVault is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        LendingVault vault = LendingVault(vaultAddress);
+        LendingVault vault = LendingVault(payable(vaultAddress));
         vault.setAuthorizedReactVM(reactVMId);
-        
+
         console.log("Authorized ReactVM set successfully!");
 
         vm.stopBroadcast();

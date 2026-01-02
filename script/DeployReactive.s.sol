@@ -12,7 +12,7 @@ import "../src/reactive/YieldMonitorReactive.sol";
 contract DeployReactive is Script {
     // Sepolia Chain ID
     uint256 constant SEPOLIA_CHAIN_ID = 11155111;
-    
+
     // Configuration
     uint256 constant REBALANCE_THRESHOLD = 100; // 1% rate difference
     uint256 constant MIN_BLOCKS_BETWEEN_REBALANCE = 5; // ~1 minute on Sepolia
@@ -36,8 +36,8 @@ contract DeployReactive is Script {
 
         // Deploy YieldMonitorReactive
         YieldMonitorReactive reactive = new YieldMonitorReactive(
-            SEPOLIA_CHAIN_ID,  // origin chain
-            SEPOLIA_CHAIN_ID,  // destination chain (same for this demo)
+            SEPOLIA_CHAIN_ID, // origin chain
+            SEPOLIA_CHAIN_ID, // destination chain (same for this demo)
             poolA,
             poolB,
             lendingVault,
@@ -53,8 +53,12 @@ contract DeployReactive is Script {
         console.log("Network: Reactive Lasna Testnet");
         console.log("YieldMonitorReactive:", address(reactive));
         console.log("\nNext Steps:");
-        console.log("1. Update LendingVault.setAuthorizedReactVM() with deployer address");
+        console.log(
+            "1. Update LendingVault.setAuthorizedReactVM() with deployer address"
+        );
         console.log("   (ReactVM ID = deployer:", deployer, ")");
-        console.log("2. Trigger rate updates on pools to test reactive monitoring");
+        console.log(
+            "2. Trigger rate updates on pools to test reactive monitoring"
+        );
     }
 }
