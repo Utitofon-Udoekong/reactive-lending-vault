@@ -245,7 +245,7 @@ forge script script/TestWorkflow.s.sol:TestWorkflow \
 
 | Contract | Address | Role |
 |----------|---------|------|
-| YieldMonitorReactive | [`0x878d0819a92B887a2851d817CA30ABc7857d6603`](https://lasna.reactscan.net/address/0x878d0819a92B887a2851d817CA30ABc7857d6603) | Reactive Contract |
+| YieldMonitorReactive | [`0x0Ef6513895243C624b97033232A0444D612c886D`](https://lasna.reactscan.net/address/0x0Ef6513895243C624b97033232A0444D612c886D) | Reactive Contract |
 
 **ReactVM ID (Deployer Address):** `0xabBce9E834eB1c61CDbE7225be03987a8945BCbC`
 

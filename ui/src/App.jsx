@@ -55,6 +55,43 @@ function BinaryRain() {
   return <canvas id="matrix" />;
 }
 
+// Info tooltip component for contextual help
+function InfoTooltip({ text }) {
+  return (
+    <span className="info-tooltip">
+      <span className="info-icon">?</span>
+      <span className="info-text">{text}</span>
+    </span>
+  );
+}
+// Helper to normalize error messages for user-friendly display
+function normalizeError(err) {
+  const msg = err?.message || err?.reason || 'Unknown error';
+
+  // Common error patterns and friendly messages
+  if (msg.includes('user rejected') || msg.includes('User denied')) {
+    return 'Transaction cancelled';
+  }
+  if (msg.includes('insufficient funds')) {
+    return 'Insufficient funds for transaction';
+  }
+  if (msg.includes('network changed') || msg.includes('chain mismatch')) {
+    return 'Network changed - please reconnect';
+  }
+  if (msg.includes('nonce')) {
+    return 'Transaction conflict - try again';
+  }
+  if (msg.includes('execution reverted')) {
+    return 'Transaction failed - check parameters';
+  }
+  if (msg.includes('gas')) {
+    return 'Gas estimation failed';
+  }
+
+  // Truncate long messages
+  return msg.length > 40 ? msg.slice(0, 40) + '...' : msg;
+}
+
 function App() {
   const [account, setAccount] = useState(null);
   const [chainId, setChainId] = useState(null);
@@ -79,71 +116,22 @@ function App() {
   const [loadingAction, setLoadingAction] = useState(null); // Track which action is loading
   const [status, setStatus] = useState({ type: '', message: '' });
 
-  // Callback pending state - tracks when rebalance is awaiting cross-chain confirmation
-  // Persisted to localStorage so it survives page refresh
-  const [callbackPending, setCallbackPending] = useState(() => {
-    const saved = localStorage.getItem('callbackPending');
-    return saved ? JSON.parse(saved) : false;
-  });
-  const [pendingTimestamp, setPendingTimestamp] = useState(() => {
-    const saved = localStorage.getItem('pendingTimestamp');
-    return saved ? JSON.parse(saved) : null;
-  });
-  const [lastKnownAllocation, setLastKnownAllocation] = useState(() => {
-    const saved = localStorage.getItem('lastKnownAllocation');
-    return saved ? JSON.parse(saved) : { a: '0', b: '0' };
-  });
+  // Simple notification for rate changes that could trigger rebalance
+  const [rebalanceNotification, setRebalanceNotification] = useState(null);
 
-  // Persist pending state to localStorage
+  // Auto-dismiss rebalance notification after 10 seconds
   useEffect(() => {
-    localStorage.setItem('callbackPending', JSON.stringify(callbackPending));
-    localStorage.setItem('pendingTimestamp', JSON.stringify(pendingTimestamp));
-    localStorage.setItem('lastKnownAllocation', JSON.stringify(lastKnownAllocation));
-  }, [callbackPending, pendingTimestamp, lastKnownAllocation]);
+    if (rebalanceNotification) {
+      const timer = setTimeout(() => setRebalanceNotification(null), 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [rebalanceNotification]);
 
   // Vault settings state
   const [rebalancePct, setRebalancePct] = useState('50');
-  const [rebalanceThreshold, setRebalanceThreshold] = useState('100');
+  const [rebalanceThreshold, setRebalanceThreshold] = useState('1.00');
   const [newRebalancePct, setNewRebalancePct] = useState('');
-
-  // Check for pre-existing pending callbacks on first load
-  const [hasCheckedPending, setHasCheckedPending] = useState(false);
-
-  const checkForPendingCallback = useCallback(async () => {
-    if (!vaultContract || !poolAContract || !poolBContract || hasCheckedPending) return;
-
-    try {
-      // Get current rates
-      const rateA = await poolAContract.getSupplyRate();
-      const rateB = await poolBContract.getSupplyRate();
-      const rateDiff = Math.abs(Number(rateA) - Number(rateB));
-
-      // Get vault's view on whether rebalance should happen
-      const [canRebal, reason] = await vaultContract.canRebalance();
-
-      // If rates differ significantly (>1%) and vault says it CAN rebalance,
-      // but allocation shows same as rates imply, there might be pending callback
-      if (rateDiff >= 100 && canRebal && !callbackPending) {
-        // Check if we should show pending (rates differ but no localStorage state)
-        const saved = localStorage.getItem('callbackPending');
-        if (!saved || saved === 'false') {
-          // May have pending callback from before - show indicator
-          setCallbackPending(true);
-          setPendingTimestamp(Date.now() - (10 * 60 * 1000)); // Assume ~10 min ago
-          const allocation = await vaultContract.getAllocation();
-          setLastKnownAllocation({
-            a: allocation[0].toString(),
-            b: allocation[1].toString()
-          });
-          setStatus({ type: 'info', message: '> DETECTED: Pending callback from previous session' });
-        }
-      }
-      setHasCheckedPending(true);
-    } catch (err) {
-      console.log('Pending check skipped:', err.message?.slice(0, 30));
-      setHasCheckedPending(true);
-    }
-  }, [vaultContract, poolAContract, poolBContract, hasCheckedPending, callbackPending]);
+  const [newThreshold, setNewThreshold] = useState('');
 
   const connectWallet = async () => {
     try {
@@ -164,7 +152,7 @@ function App() {
       setVaultContract(new Contract(CONTRACTS.VAULT, VAULT_ABI, signer));
       setStatus({ type: 'success', message: '> CONNECTED: Wallet linked successfully' });
     } catch (err) {
-      setStatus({ type: 'error', message: `> ERROR: ${err.message}` });
+      setStatus({ type: 'error', message: `> ERROR: ${normalizeError(err)}` });
     }
   };
 
@@ -175,7 +163,7 @@ function App() {
         params: [{ chainId: '0xaa36a7' }],
       });
     } catch (err) {
-      setStatus({ type: 'error', message: `> ERROR: ${err.message}` });
+      setStatus({ type: 'error', message: `> ERROR: ${normalizeError(err)}` });
     }
   };
 
@@ -211,16 +199,6 @@ function App() {
       const newBalA = formatUnits(balA, 18);
       const newBalB = formatUnits(balB, 18);
 
-      // Check if allocation changed (rebalance happened)
-      if (callbackPending && lastKnownAllocation.a !== '0') {
-        const allocChanged = Math.abs(Number(newBalA) - Number(lastKnownAllocation.a)) > 10;
-        if (allocChanged) {
-          setCallbackPending(false);
-          setPendingTimestamp(null);
-          setStatus({ type: 'success', message: '> REBALANCE COMPLETE: Funds have been moved!' });
-        }
-      }
-
       setPoolABalance(newBalA);
       setPoolBBalance(newBalB);
       setTotalAssets(formatUnits(assets, 18));
@@ -249,14 +227,6 @@ function App() {
     }
   }, [account, chainId, fetchData]);
 
-  // Check for pre-existing pending callbacks once contracts are ready
-  useEffect(() => {
-    if (account && chainId === CHAINS.SEPOLIA && vaultContract && poolAContract && poolBContract) {
-      checkForPendingCallback();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [account, chainId, vaultContract, poolAContract, poolBContract]);
-
   const handleTx = async (action, fn) => {
     setLoadingAction(action);
     setStatus({ type: 'info', message: `> PROCESSING: ${action}...` });
@@ -267,7 +237,7 @@ function App() {
       await fetchData();
       setStatus({ type: 'success', message: `> SUCCESS: ${action} complete` });
     } catch (err) {
-      setStatus({ type: 'error', message: `> FAILED: ${err.message?.slice(0, 50)}` });
+      setStatus({ type: 'error', message: `> FAILED: ${normalizeError(err)}` });
     }
     setLoadingAction(null);
   };
@@ -286,26 +256,22 @@ function App() {
 
   const updateRateA = () => handleTx('Rate Update A', async () => {
     const tx = await poolAContract.updateRates(Number(newRateA) * 100, Number(newRateA) * 150, 5000);
-    // Mark callback as pending if rate diff will exceed threshold
+    // Show notification if rate diff will exceed threshold
     const currentRateB = Number(poolBRate);
     const newRate = Number(newRateA);
     if (Math.abs(newRate - currentRateB) >= 1) {
-      setCallbackPending(true);
-      setPendingTimestamp(Date.now());
-      setLastKnownAllocation({ a: poolABalance, b: poolBBalance });
+      setRebalanceNotification(`Pool A rate changed to ${newRateA}%. Rebalance may be triggered.`);
     }
     return tx;
   });
 
   const updateRateB = () => handleTx('Rate Update B', async () => {
     const tx = await poolBContract.updateRates(Number(newRateB) * 100, Number(newRateB) * 150, 5000);
-    // Mark callback as pending if rate diff will exceed threshold
+    // Show notification if rate diff will exceed threshold
     const currentRateA = Number(poolARate);
     const newRate = Number(newRateB);
     if (Math.abs(currentRateA - newRate) >= 1) {
-      setCallbackPending(true);
-      setPendingTimestamp(Date.now());
-      setLastKnownAllocation({ a: poolABalance, b: poolBBalance });
+      setRebalanceNotification(`Pool B rate changed to ${newRateB}%. Rebalance may be triggered.`);
     }
     return tx;
   });
@@ -317,7 +283,17 @@ function App() {
   const updateRebalancePct = () => handleTx('Set Rebalance %', async () => {
     // Convert percentage (0-100) to basis points (0-10000)
     const bps = Number(newRebalancePct) * 100;
-    return vaultContract.setRebalancePercentage(bps);
+    const tx = await vaultContract.setRebalancePercentage(bps);
+    setNewRebalancePct(''); // Clear input after success
+    return tx;
+  });
+
+  const updateThreshold = () => handleTx('Set Threshold', async () => {
+    // Convert percentage (e.g., 1.5) to basis points (150)
+    const bps = Math.round(Number(newThreshold) * 100);
+    const tx = await vaultContract.setRebalanceThreshold(bps);
+    setNewThreshold(''); // Clear input after success
+    return tx;
   });
 
   const rateDiff = Math.abs(Number(poolARate) - Number(poolBRate)).toFixed(2);
@@ -405,7 +381,7 @@ function App() {
           )}
 
           <section className="rates-section">
-            <h2>{"<YIELD_RATES/>"}</h2>
+            <h2>{"<YIELD_RATES/>"}<InfoTooltip text="APY rates from each lending pool. Funds flow to the higher-yield pool when difference exceeds threshold." /></h2>
             <div className="rates-display">
               <div className="rate-box">
                 <span className="pool-id">POOL_A</span>
@@ -429,18 +405,14 @@ function App() {
               <span>POOL_B: {Number(poolBBalance).toLocaleString()} mUSDC</span>
             </div>
             <p className="status-text">
-              {callbackPending ? (
-                <>
-                  <span className="spinner"></span>
-                  {` >> CALLBACK PENDING → Awaiting cross-chain confirmation (${Math.floor((Date.now() - pendingTimestamp) / 60000)}m elapsed)`}
-                </>
-              ) : Number(rateDiff) >= 1
+              {Number(rateDiff) >= 1
                 ? `>> REBALANCE ACTIVE → Pool ${higherPool}`
                 : '>> THRESHOLD NOT MET (1% required)'}
             </p>
-            {callbackPending && (
+            {rebalanceNotification && (
               <p className="pending-hint">
-                The Reactive Network is processing your rebalance request. This may take several minutes on testnet.
+                <span className="spinner"></span>
+                {rebalanceNotification}
               </p>
             )}
           </section>
@@ -483,7 +455,7 @@ function App() {
           </section>
 
           <section className="demo-section">
-            <h2>{"<DEMO_CONTROLS/>"}</h2>
+            <h2>{"<DEMO_CONTROLS/>"}<InfoTooltip text="Simulate pool rate changes to trigger the Reactive Network. When rate diff exceeds threshold, rebalance is triggered automatically." /></h2>
             <p className="hint">Trigger rate changes to test reactive automation</p>
             <div className="demo-grid">
               <div className="input-row">
@@ -515,35 +487,55 @@ function App() {
 
           {/* Vault Settings */}
           <section className="settings-section">
-            <h2>{"<VAULT_SETTINGS/>"}</h2>
+            <h2>{"<VAULT_SETTINGS/>"}<InfoTooltip text="Configure how the vault rebalances between pools. Only the contract owner can modify these settings." /></h2>
             <p className="hint">Configure rebalancing behavior (Owner only)</p>
             <div className="settings-grid">
               <div className="setting-item">
-                <span className="setting-label">REBALANCE_PCT</span>
+                <span className="setting-label">REBALANCE_PCT<InfoTooltip text="Percentage of funds to move when rebalancing. 80% means move 80% from lower to higher yield pool." /></span>
                 <span className="setting-value">{rebalancePct}%</span>
               </div>
               <div className="setting-item">
-                <span className="setting-label">THRESHOLD</span>
+                <span className="setting-label">THRESHOLD<InfoTooltip text="Minimum rate difference (in %) required to trigger a rebalance. Prevents unnecessary moves for tiny differences." /></span>
                 <span className="setting-value">{rebalanceThreshold}%</span>
               </div>
             </div>
-            <div className="input-row" style={{ marginTop: '1rem' }}>
-              <span>NEW_PCT:</span>
-              <input
-                type="number"
-                placeholder="0-100"
-                min="0"
-                max="100"
-                value={newRebalancePct}
-                onChange={(e) => setNewRebalancePct(e.target.value)}
-              />
-              <button
-                onClick={updateRebalancePct}
-                disabled={loadingAction || !newRebalancePct || Number(newRebalancePct) < 0 || Number(newRebalancePct) > 100}
-                className="btn"
-              >
-                {loadingAction === 'Set Rebalance %' ? <span className="spinner"></span> : 'SET'}
-              </button>
+            <div className="demo-grid" style={{ marginTop: '1rem' }}>
+              <div className="input-row">
+                <span>PCT:</span>
+                <input
+                  type="number"
+                  placeholder="0-100"
+                  min="0"
+                  max="100"
+                  value={newRebalancePct}
+                  onChange={(e) => setNewRebalancePct(e.target.value)}
+                />
+                <button
+                  onClick={updateRebalancePct}
+                  disabled={loadingAction || !newRebalancePct || Number(newRebalancePct) < 0 || Number(newRebalancePct) > 100}
+                  className="btn"
+                >
+                  {loadingAction === 'Set Rebalance %' ? <span className="spinner"></span> : 'SET'}
+                </button>
+              </div>
+              <div className="input-row">
+                <span>THR:</span>
+                <input
+                  type="number"
+                  placeholder="e.g. 1.5"
+                  min="0"
+                  step="0.1"
+                  value={newThreshold}
+                  onChange={(e) => setNewThreshold(e.target.value)}
+                />
+                <button
+                  onClick={updateThreshold}
+                  disabled={loadingAction || !newThreshold || Number(newThreshold) < 0}
+                  className="btn"
+                >
+                  {loadingAction === 'Set Threshold' ? <span className="spinner"></span> : 'SET'}
+                </button>
+              </div>
             </div>
           </section>
 
@@ -564,7 +556,7 @@ function App() {
           <span>POWERED BY</span>
           <a href="https://reactive.network" target="_blank" rel="noreferrer">REACTIVE.NETWORK</a>
         </footer>
-      </div>
+      </div >
     </>
   );
 }
