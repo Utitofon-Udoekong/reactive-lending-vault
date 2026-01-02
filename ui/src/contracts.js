@@ -1,11 +1,11 @@
 // Contract addresses (Sepolia)
 export const CONTRACTS = {
-    TOKEN: "0xf4CD5a8E1333D7b2bb01653B87bc4379BF467c9F",
-    POOL_A: "0xB67d0c4bB0B04A6132a50EBbC9151093dE7B2a05",
-    POOL_B: "0x2D64e2fe12090773A549c56aA20aea5bA0905a8C",
-    VAULT: "0xCC38e9E04942a99526688Bde976b5cc26D34db17",
-    REACTIVE: "0x3B7B648e90c8b9c8173315b96C1FEE4CB604924a",
-    REACTVM_ID: "0x3B7B648e90c8b9c8173315b96C1FEE4CB604924a"
+    TOKEN: import.meta.env.VITE_TOKEN_ADDRESS,
+    POOL_A: import.meta.env.VITE_POOL_A_ADDRESS,
+    POOL_B: import.meta.env.VITE_POOL_B_ADDRESS,
+    VAULT: import.meta.env.VITE_LENDING_VAULT_ADDRESS,
+    REACTIVE: import.meta.env.VITE_REACTIVE_ADDRESS,
+    REACTVM_ID: import.meta.env.VITE_REACTVM_ID
 };
 
 // Chain IDs
@@ -14,8 +14,8 @@ export const CHAINS = {
     REACTIVE: 5318007
 };
 
-// Sepolia RPC
-export const RPC_URL = "https://eth-sepolia.g.alchemy.com/v2/demo";
+// Sepolia RPC (uses VITE_SEPOLIA_RPC_URL from ui/.env if available)
+export const RPC_URL = import.meta.env.VITE_SEPOLIA_RPC_URL || "https://eth-sepolia.g.alchemy.com/v2/demo";
 
 // ABIs
 export const TOKEN_ABI = [

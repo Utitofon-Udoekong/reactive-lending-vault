@@ -79,10 +79,71 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState({ type: '', message: '' });
 
+  // Callback pending state - tracks when rebalance is awaiting cross-chain confirmation
+  // Persisted to localStorage so it survives page refresh
+  const [callbackPending, setCallbackPending] = useState(() => {
+    const saved = localStorage.getItem('callbackPending');
+    return saved ? JSON.parse(saved) : false;
+  });
+  const [pendingTimestamp, setPendingTimestamp] = useState(() => {
+    const saved = localStorage.getItem('pendingTimestamp');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [lastKnownAllocation, setLastKnownAllocation] = useState(() => {
+    const saved = localStorage.getItem('lastKnownAllocation');
+    return saved ? JSON.parse(saved) : { a: '0', b: '0' };
+  });
+
+  // Persist pending state to localStorage
+  useEffect(() => {
+    localStorage.setItem('callbackPending', JSON.stringify(callbackPending));
+    localStorage.setItem('pendingTimestamp', JSON.stringify(pendingTimestamp));
+    localStorage.setItem('lastKnownAllocation', JSON.stringify(lastKnownAllocation));
+  }, [callbackPending, pendingTimestamp, lastKnownAllocation]);
+
   // Vault settings state
   const [rebalancePct, setRebalancePct] = useState('50');
   const [rebalanceThreshold, setRebalanceThreshold] = useState('100');
   const [newRebalancePct, setNewRebalancePct] = useState('');
+
+  // Check for pre-existing pending callbacks on first load
+  const [hasCheckedPending, setHasCheckedPending] = useState(false);
+
+  const checkForPendingCallback = useCallback(async () => {
+    if (!vaultContract || !poolAContract || !poolBContract || hasCheckedPending) return;
+
+    try {
+      // Get current rates
+      const rateA = await poolAContract.getSupplyRate();
+      const rateB = await poolBContract.getSupplyRate();
+      const rateDiff = Math.abs(Number(rateA) - Number(rateB));
+
+      // Get vault's view on whether rebalance should happen
+      const [canRebal, reason] = await vaultContract.canRebalance();
+
+      // If rates differ significantly (>1%) and vault says it CAN rebalance,
+      // but allocation shows same as rates imply, there might be pending callback
+      if (rateDiff >= 100 && canRebal && !callbackPending) {
+        // Check if we should show pending (rates differ but no localStorage state)
+        const saved = localStorage.getItem('callbackPending');
+        if (!saved || saved === 'false') {
+          // May have pending callback from before - show indicator
+          setCallbackPending(true);
+          setPendingTimestamp(Date.now() - (10 * 60 * 1000)); // Assume ~10 min ago
+          const allocation = await vaultContract.getAllocation();
+          setLastKnownAllocation({
+            a: allocation[0].toString(),
+            b: allocation[1].toString()
+          });
+          setStatus({ type: 'info', message: '> DETECTED: Pending callback from previous session' });
+        }
+      }
+      setHasCheckedPending(true);
+    } catch (err) {
+      console.log('Pending check skipped:', err.message?.slice(0, 30));
+      setHasCheckedPending(true);
+    }
+  }, [vaultContract, poolAContract, poolBContract, hasCheckedPending, callbackPending]);
 
   const connectWallet = async () => {
     try {
@@ -146,8 +207,22 @@ function App() {
       setUserShares(formatUnits(shares, 18));
       setPoolARate((Number(rateA) / 100).toFixed(2));
       setPoolBRate((Number(rateB) / 100).toFixed(2));
-      setPoolABalance(formatUnits(balA, 18));
-      setPoolBBalance(formatUnits(balB, 18));
+
+      const newBalA = formatUnits(balA, 18);
+      const newBalB = formatUnits(balB, 18);
+
+      // Check if allocation changed (rebalance happened)
+      if (callbackPending && lastKnownAllocation.a !== '0') {
+        const allocChanged = Math.abs(Number(newBalA) - Number(lastKnownAllocation.a)) > 10;
+        if (allocChanged) {
+          setCallbackPending(false);
+          setPendingTimestamp(null);
+          setStatus({ type: 'success', message: '> REBALANCE COMPLETE: Funds have been moved!' });
+        }
+      }
+
+      setPoolABalance(newBalA);
+      setPoolBBalance(newBalB);
       setTotalAssets(formatUnits(assets, 18));
       setAllowance(formatUnits(allow, 18));
 
@@ -173,6 +248,14 @@ function App() {
       return () => clearInterval(interval);
     }
   }, [account, chainId, fetchData]);
+
+  // Check for pre-existing pending callbacks once contracts are ready
+  useEffect(() => {
+    if (account && chainId === CHAINS.SEPOLIA && vaultContract && poolAContract && poolBContract) {
+      checkForPendingCallback();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [account, chainId, vaultContract, poolAContract, poolBContract]);
 
   const handleTx = async (action, fn) => {
     setLoading(true);
@@ -201,13 +284,31 @@ function App() {
     vaultContract.withdraw(parseUnits(withdrawShares, 18))
   );
 
-  const updateRateA = () => handleTx('Rate Update A', () =>
-    poolAContract.updateRates(Number(newRateA) * 100, Number(newRateA) * 150, 5000)
-  );
+  const updateRateA = () => handleTx('Rate Update A', async () => {
+    const tx = await poolAContract.updateRates(Number(newRateA) * 100, Number(newRateA) * 150, 5000);
+    // Mark callback as pending if rate diff will exceed threshold
+    const currentRateB = Number(poolBRate);
+    const newRate = Number(newRateA);
+    if (Math.abs(newRate - currentRateB) >= 1) {
+      setCallbackPending(true);
+      setPendingTimestamp(Date.now());
+      setLastKnownAllocation({ a: poolABalance, b: poolBBalance });
+    }
+    return tx;
+  });
 
-  const updateRateB = () => handleTx('Rate Update B', () =>
-    poolBContract.updateRates(Number(newRateB) * 100, Number(newRateB) * 150, 5000)
-  );
+  const updateRateB = () => handleTx('Rate Update B', async () => {
+    const tx = await poolBContract.updateRates(Number(newRateB) * 100, Number(newRateB) * 150, 5000);
+    // Mark callback as pending if rate diff will exceed threshold
+    const currentRateA = Number(poolARate);
+    const newRate = Number(newRateB);
+    if (Math.abs(currentRateA - newRate) >= 1) {
+      setCallbackPending(true);
+      setPendingTimestamp(Date.now());
+      setLastKnownAllocation({ a: poolABalance, b: poolBBalance });
+    }
+    return tx;
+  });
 
   const getFaucetTokens = () => handleTx('Faucet', () =>
     tokenContract.faucet(parseUnits('1000', 18))
@@ -328,10 +429,20 @@ function App() {
               <span>POOL_B: {Number(poolBBalance).toLocaleString()} mUSDC</span>
             </div>
             <p className="status-text">
-              {Number(rateDiff) >= 1
+              {callbackPending ? (
+                <>
+                  <span className="spinner"></span>
+                  {` >> CALLBACK PENDING → Awaiting cross-chain confirmation (${Math.floor((Date.now() - pendingTimestamp) / 60000)}m elapsed)`}
+                </>
+              ) : Number(rateDiff) >= 1
                 ? `>> REBALANCE ACTIVE → Pool ${higherPool}`
                 : '>> THRESHOLD NOT MET (1% required)'}
             </p>
+            {callbackPending && (
+              <p className="pending-hint">
+                The Reactive Network is processing your rebalance request. This may take several minutes on testnet.
+              </p>
+            )}
           </section>
 
           <section className="actions-grid">

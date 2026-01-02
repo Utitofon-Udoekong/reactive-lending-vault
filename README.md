@@ -12,41 +12,21 @@ This project implements a cross-chain lending automation vault that:
 
 ## 🏗️ Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                           ETHEREUM SEPOLIA                              │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────────────────┐  │
-│  │   Pool A     │    │   Pool B     │    │     LendingVault         │  │
-│  │ (5% APY)     │    │ (3% APY)     │    │   (Destination)          │  │
-│  │              │    │              │    │                          │  │
-│  │ RateUpdated  │    │ RateUpdated  │    │  deposit()               │  │
-│  │ Event ──────►│    │ Event ──────►│    │  withdraw()              │  │
-│  └──────────────┘    └──────────────┘    │  executeRebalance() ◄────│──┤
-│         │                   │            └──────────────────────────┘  │
-│         │                   │                                          │
-└─────────┼───────────────────┼──────────────────────────────────────────┘
-          │                   │
-          ▼                   ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                      REACTIVE NETWORK (LASNA)                          │
-│  ┌──────────────────────────────────────────────────────────────────┐  │
-│  │                  YieldMonitorReactive                             │  │
-│  │                                                                   │  │
-│  │  subscribe(Pool A, RateUpdated)                                   │  │
-│  │  subscribe(Pool B, RateUpdated)                                   │  │
-│  │                                                                   │  │
-│  │  react(log) {                                                     │  │
-│  │    - Update stored rates                                          │  │
-│  │    - Check if rate difference > threshold                         │  │
-│  │    - If yes: emit Callback(executeRebalance)                      │  │
-│  │  }                                                                │  │
-│  └──────────────────────────────────────────────────────────────────┘  │
-│                              │                                          │
-│                              ▼                                          │
-│                   Callback Transaction                                  │
-│                   to Sepolia Vault                                      │
-└─────────────────────────────────────────────────────────────────────────┘
-```
+**Ethereum Sepolia (Origin Chain)**
+| Contract | Purpose |
+|----------|---------|
+| Pool A | Lending pool with variable APY, emits `RateUpdated` events |
+| Pool B | Lending pool with variable APY, emits `RateUpdated` events |
+| LendingVault | User-facing vault - `deposit()`, `withdraw()`, `executeRebalance()` |
+
+⬇️ Events flow to Reactive Network ⬇️
+
+**Reactive Network (Lasna)**
+| Contract | Purpose |
+|----------|---------|
+| YieldMonitorReactive | Subscribes to pool events, monitors rates, emits `Callback` when rebalance needed |
+
+⬆️ Callback triggers `executeRebalance()` on Vault ⬆️
 
 ## 📋 Project Structure
 
@@ -250,59 +230,162 @@ forge script script/TestWorkflow.s.sol:TestWorkflow \
 - **Reentrancy Protection**: All external functions protected with `nonReentrant`
 - **Owner Controls**: Emergency functions for pausing and recovery
 
-## 🎥 Demo Video
-
-[Watch the 5-minute demo video explaining the design, threat model, and trade-offs]
-
 ## 📜 Deployed Contracts
 
-### Ethereum Sepolia (Chain ID: 11155111)
+### Ethereum Sepolia - Origin & Destination (Chain ID: 11155111)
 
-| Contract | Address |
-|----------|---------|  
-| MockToken | `0x7069d29c5fD16280ed972Cf1931b852425D11207` |
-| Pool A | `0x9297c4A7c171566149763463288BdE43670663A6` |
-| Pool B | `0x2916d116C9042A7EF88f462111c011403Db77D7C` |
-| LendingVault | `0xDe77B417f9102079f3BA3AE16c69226140E8dc9b` |
+| Contract | Address | Role |
+|----------|---------|------|
+| MockToken (mUSDC) | `0xf4CD5a8E1333D7b2bb01653B87bc4379BF467c9F` | ERC20 Token |
+| Pool A | `0xB67d0c4bB0B04A6132a50EBbC9151093dE7B2a05` | Origin (emits events) |
+| Pool B | `0x2D64e2fe12090773A549c56aA20aea5bA0905a8C` | Origin (emits events) |
+| LendingVault | `0xCC38e9E04942a99526688Bde976b5cc26D34db17` | Destination (receives callbacks) |
 
-### Reactive Lasna Testnet (Chain ID: 5318007)
+### Reactive Network Lasna Testnet (Chain ID: 5318007)
 
-| Contract | Address |
-|----------|---------|  
-| YieldMonitorReactive | `0x110280ee8Ec014db728Bf42dC9275d23138E2C7d` |
+| Contract | Address | Role |
+|----------|---------|------|
+| YieldMonitorReactive | `0x3B7B648e90c8b9c8173315b96C1FEE4CB604924a` | Reactive Contract |
 
-**ReactVM ID:** `0xabBce9E834eB1c61CDbE7225be03987a8945BCbC`
+**ReactVM ID (Deployer Address):** `0xabBce9E834eB1c61CDbE7225be03987a8945BCbC`
 
-## 📝 Transaction Hashes
+> **Note:** The ReactVM ID is the deployer's wallet address. This is because all contracts deployed by the same address share a single ReactVM instance on the Reactive Network.
+
+## 📝 Step-by-Step Workflow & Transaction Hashes
+
+This section documents the complete workflow execution with transaction hashes for verification.
+
+### Step 1: Deploy Origin Contracts (Sepolia)
+
+Deployed MockToken, Pool A, Pool B, and LendingVault to Ethereum Sepolia.
+
+| Contract | Deploy Tx Hash |
+|----------|---------------|
+| MockToken | [View on Etherscan](https://sepolia.etherscan.io/address/0xf4CD5a8E1333D7b2bb01653B87bc4379BF467c9F) |
+| Pool A | [View on Etherscan](https://sepolia.etherscan.io/address/0xB67d0c4bB0B04A6132a50EBbC9151093dE7B2a05) |
+| Pool B | [View on Etherscan](https://sepolia.etherscan.io/address/0x2D64e2fe12090773A549c56aA20aea5bA0905a8C) |
+| LendingVault | [View on Etherscan](https://sepolia.etherscan.io/address/0xCC38e9E04942a99526688Bde976b5cc26D34db17) |
+
+### Step 2: Deploy Reactive Contract (Lasna)
+
+Deployed YieldMonitorReactive to Reactive Network Lasna Testnet.
+
+| Action | Tx Hash | Explorer |
+|--------|---------|----------|
+| Deploy YieldMonitorReactive | `0x...` | [ReactScan](https://lasna.reactscan.net/address/0x3B7B648e90c8b9c8173315b96C1FEE4CB604924a) |
+
+### Step 3: Setup Subscriptions (Lasna)
+
+Called `setupSubscriptions()` to subscribe to RateUpdated events from Pool A and Pool B.
 
 | Action | Tx Hash | Network |
-|--------|---------|---------|  
-| Deploy Origin Contracts | `0x401a2eb3980ce8381ed2b4e01a0290c834e0d38c2cfa5f901f9d549a1fbe5d01` | Sepolia |
-| Deploy Reactive Contract | `0x7982a37b6f7c928ec5d70dea7f0da0d3911860e2542820ea512581b59ccd2c77` | Reactive |
-| Setup Vault Authorization | `0xbd5455fe435506911815f88103dfff991ef4570836d363a69f730754d374a25c` | Sepolia |
+|--------|---------|---------|
+| Setup Subscriptions | `0x...` | Reactive Lasna |
+
+### Step 4: Authorize ReactVM on Vault (Sepolia)
+
+Updated the LendingVault to authorize the ReactVM ID (deployer address).
+
+| Action | Tx Hash | Network |
+|--------|---------|---------|
+| Set Authorized ReactVM | `0x00f03c5e7376d5517e71c59e025137c454615aa4d889c93076a8860c2d7eb1c4` | [Sepolia](https://sepolia.etherscan.io/tx/0x00f03c5e7376d5517e71c59e025137c454615aa4d889c93076a8860c2d7eb1c4) |
+
+### Step 5: Fund Reactive Contract (Lasna)
+
+Sent ETH to the reactive contract to pay for callback relay fees.
+
+| Action | Tx Hash | Network |
+|--------|---------|---------|
+| Fund Contract (0.1 ETH) | `0x7760a4f7d43ec55940ccb2a6a71f616de3cde52feebabf8924c56fe23dcd7982` | Reactive Lasna |
+
+### Step 6: User Deposits to Vault (Sepolia)
+
+User deposits tokens into the vault, which allocates to pools based on current rates.
+
+| Action | Tx Hash | Network |
+|--------|---------|---------|
+| Deposit 10,000 mUSDC | `0x818195dc45c12a33ddab9a13114eed863512e8cbca87205be2e0149ac844f411` | [Sepolia](https://sepolia.etherscan.io/tx/0x818195dc45c12a33ddab9a13114eed863512e8cbca87205be2e0149ac844f411) |
+
+### Step 7: Trigger Rate Change (Sepolia - Origin Transaction)
+
+Pool rate is updated, emitting the `RateUpdated` event that the Reactive Contract monitors.
+
+| Action | Tx Hash | Network |
+|--------|---------|---------|
+| Set Pool B Rate to 15% | `0x42adc27873f3a3b42f453560f8a60ab5667c51431055610770e16d520a88a378` | [Sepolia](https://sepolia.etherscan.io/tx/0x42adc27873f3a3b42f453560f8a60ab5667c51431055610770e16d520a88a378) |
+
+### Step 8: Reactive Contract Processes Event (Reactive Transaction)
+
+The Reactive Network captures the event and executes the `react()` function.
+
+| Action | Tx Hash | Network |
+|--------|---------|---------|
+| React to Event | [View on ReactScan](https://lasna.reactscan.net/address/0xabbce9e834eb1c61cdbe7225be03987a8945bcbc) | Reactive Lasna |
+
+### Step 9: Callback Execution (Destination Transaction)
+
+The Reactive Network delivers the callback to execute `executeRebalance()` on the vault.
+
+| Action | Tx Hash | Network |
+|--------|---------|---------|
+| Execute Rebalance | `0x607c74fe17dc5a3ea32b567082325466012a15e28fcf2e9eb7e70fff69f57eaf` | [Sepolia](https://sepolia.etherscan.io/tx/0x607c74fe17dc5a3ea32b567082325466012a15e28fcf2e9eb7e70fff69f57eaf) |
+
+✅ **Funds successfully moved from Pool A → Pool B based on yield difference!**
 
 **Block Explorers:**
-- Sepolia: https://sepolia.etherscan.io
-- Reactive: https://lasna.reactscan.net
+- **Sepolia:** https://sepolia.etherscan.io
+- **Reactive Lasna:** https://lasna.reactscan.net
 
 ## 🤔 Why Reactive Contracts?
 
-### The Problem Without Reactive Contracts
+### The Problem: Automated Yield Optimization is Hard
 
-Without Reactive Contracts, achieving automated yield optimization requires:
+**Without Reactive Contracts**, achieving automated yield optimization requires one of these approaches:
 
-1. **Off-chain Infrastructure**: A centralized server monitoring on-chain rates
-2. **Keeper Network**: Expensive keeper bots (Gelato, Chainlink Automation)
-3. **Manual Intervention**: Users monitoring and triggering rebalances themselves
-4. **Trust Assumptions**: Users must trust centralized automation providers
+| Approach | Problems |
+|----------|----------|
+| **Centralized Bots** | Single point of failure, requires 24/7 infrastructure, trust assumptions |
+| **Keeper Networks (Gelato/Chainlink)** | Ongoing fees ($100s-$1000s/month), complex setup, external dependencies |
+| **Manual Monitoring** | Human latency (hours/days), missed opportunities, not scalable |
+| **Polling-Based Solutions** | Wasteful (constant RPC calls), slow reaction (polling intervals), expensive |
 
-### Why Reactive Contracts Are Better
+**The core challenge:** Traditional smart contracts are *passive* - they can only execute when explicitly called by an EOA. There's no native way for a contract to "watch" for events and automatically respond.
 
-1. **Fully On-Chain Automation**: No off-chain components required
-2. **Trustless Execution**: Smart contracts handle everything autonomously
-3. **Event-Driven**: Immediate response to rate changes
-4. **Cost-Effective**: No ongoing keeper fees or infrastructure costs
-5. **Censorship Resistant**: No central point of failure
+### Why Reactive Contracts Are the Solution
+
+Reactive Contracts solve this through **Inversion of Control (IoC)**:
+
+| Feature | Benefit |
+|---------|---------|
+| **Event-Driven Execution** | Contract automatically executes when subscribed events occur |
+| **Fully On-Chain** | No off-chain infrastructure, servers, or bots needed |
+| **Trustless** | No intermediaries, keepers, or centralized operators |
+| **Cost-Effective** | Pay per callback, no ongoing subscription fees |
+| **Immediate Response** | Reacts as soon as the event is emitted, no polling delays |
+| **Censorship Resistant** | Decentralized infrastructure, no single point of failure |
+
+### Without Reactive Contracts, This Would Be Impossible
+
+To achieve the same functionality without Reactive Contracts, you would need:
+
+1. **A dedicated server** running 24/7, monitoring both pools for rate changes
+2. **A hot wallet** with private keys on the server, funding for gas
+3. **Monitoring infrastructure** for alerting on server downtime
+4. **Security measures** to protect the hot wallet from compromise
+5. **Keeper fallbacks** in case the primary server fails
+
+**Cost estimate:** $500-2000/month for infrastructure + security risks
+
+With Reactive Contracts: **Deploy once, runs forever, fully trustless.**
+
+### Reactivity in This Application
+
+This project demonstrates meaningful use of Reactive Contracts:
+
+1. **Event Subscription**: Subscribes to `RateUpdated` events from two lending pools
+2. **State Accumulation**: Stores rate history in ReactVM state for comparison
+3. **Conditional Logic**: Only triggers rebalance when rate difference > threshold
+4. **Cross-Chain Callback**: Emits `Callback` to execute `executeRebalance()` on destination
 
 ## 📄 License
 
