@@ -11,7 +11,7 @@ import "../interfaces/ILendingPool.sol";
  * @title MockLendingPool
  * @notice A mock lending pool for demonstration purposes
  * @dev Simulates a lending pool with configurable interest rates
- * 
+ *
  * This contract represents one of the lending markets (Pool A or Pool B)
  * that the vault will allocate funds to. It emits RateUpdated events
  * that the Reactive Contract monitors to trigger rebalancing.
@@ -47,7 +47,11 @@ contract MockLendingPool is ILendingPool, Ownable, ReentrancyGuard {
     uint256 public constant MIN_DEPOSIT = 1e6; // 0.000001 tokens (for 18 decimals)
 
     /// @notice Event emitted when rates are manually updated
-    event RatesManuallyUpdated(uint256 supplyRate, uint256 borrowRate, uint256 utilization);
+    event RatesManuallyUpdated(
+        uint256 supplyRate,
+        uint256 borrowRate,
+        uint256 utilization
+    );
 
     /**
      * @notice Constructor for the mock lending pool
@@ -77,7 +81,9 @@ contract MockLendingPool is ILendingPool, Ownable, ReentrancyGuard {
      * @param amount The amount of assets to deposit
      * @return shares The number of shares minted
      */
-    function deposit(uint256 amount) external override nonReentrant returns (uint256 shares) {
+    function deposit(
+        uint256 amount
+    ) external override nonReentrant returns (uint256 shares) {
         require(amount >= MIN_DEPOSIT, "Deposit too small");
 
         // Calculate shares (1:1 for first deposit, then proportional)
@@ -100,7 +106,9 @@ contract MockLendingPool is ILendingPool, Ownable, ReentrancyGuard {
      * @param shares The number of shares to redeem
      * @return amount The amount of assets withdrawn
      */
-    function withdraw(uint256 shares) external override nonReentrant returns (uint256 amount) {
+    function withdraw(
+        uint256 shares
+    ) external override nonReentrant returns (uint256 amount) {
         require(shares > 0, "Zero shares");
         require(_shares[msg.sender] >= shares, "Insufficient shares");
 
@@ -125,7 +133,9 @@ contract MockLendingPool is ILendingPool, Ownable, ReentrancyGuard {
      * @param shares The shares to convert
      * @return The equivalent asset amount
      */
-    function convertToAssets(uint256 shares) public view override returns (uint256) {
+    function convertToAssets(
+        uint256 shares
+    ) public view override returns (uint256) {
         if (totalShares == 0) return shares;
         return (shares * totalAssets) / totalShares;
     }
@@ -135,7 +145,9 @@ contract MockLendingPool is ILendingPool, Ownable, ReentrancyGuard {
      * @param assets The assets to convert
      * @return The equivalent shares amount
      */
-    function convertToShares(uint256 assets) public view override returns (uint256) {
+    function convertToShares(
+        uint256 assets
+    ) public view override returns (uint256) {
         if (totalAssets == 0 || totalShares == 0) return assets;
         return (assets * totalShares) / totalAssets;
     }
@@ -145,7 +157,9 @@ contract MockLendingPool is ILendingPool, Ownable, ReentrancyGuard {
      * @param account The account to query
      * @return The shares balance
      */
-    function sharesOf(address account) external view override returns (uint256) {
+    function sharesOf(
+        address account
+    ) external view override returns (uint256) {
         return _shares[account];
     }
 
@@ -186,7 +200,7 @@ contract MockLendingPool is ILendingPool, Ownable, ReentrancyGuard {
         uint256 _supplyRate,
         uint256 _borrowRate,
         uint256 _utilization
-    ) external onlyOwner {
+    ) external {
         require(_supplyRate <= 10000, "Supply rate too high"); // Max 100%
         require(_borrowRate <= 10000, "Borrow rate too high"); // Max 100%
         require(_utilization <= 10000, "Utilization too high"); // Max 100%

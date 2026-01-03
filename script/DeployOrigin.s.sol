@@ -13,17 +13,17 @@ import "../src/destination/LendingVault.sol";
  */
 contract DeployOriginContracts is Script {
     // Configuration
-    uint256 constant POOL_A_INITIAL_SUPPLY_RATE = 500;  // 5% APY
-    uint256 constant POOL_A_INITIAL_BORROW_RATE = 800;  // 8% APY
+    uint256 constant POOL_A_INITIAL_SUPPLY_RATE = 500; // 5% APY
+    uint256 constant POOL_A_INITIAL_BORROW_RATE = 800; // 8% APY
     uint256 constant POOL_A_INITIAL_UTILIZATION = 6000; // 60%
 
-    uint256 constant POOL_B_INITIAL_SUPPLY_RATE = 300;  // 3% APY
-    uint256 constant POOL_B_INITIAL_BORROW_RATE = 600;  // 6% APY
+    uint256 constant POOL_B_INITIAL_SUPPLY_RATE = 300; // 3% APY
+    uint256 constant POOL_B_INITIAL_BORROW_RATE = 600; // 6% APY
     uint256 constant POOL_B_INITIAL_UTILIZATION = 4000; // 40%
 
     uint256 constant REBALANCE_THRESHOLD = 100; // 1% rate difference triggers rebalance
-    uint256 constant REBALANCE_COOLDOWN = 60;   // 60 seconds between rebalances
-    uint256 constant REBALANCE_PERCENTAGE = 5000; // 50% of funds moved on rebalance
+    uint256 constant REBALANCE_COOLDOWN = 60; // 60 seconds between rebalances
+    uint256 constant REBALANCE_PERCENTAGE = 9000; // 90% of funds moved on rebalance
 
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
