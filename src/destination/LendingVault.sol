@@ -81,6 +81,7 @@ contract LendingVault is ILendingVault, Ownable, ReentrancyGuard {
         uint256 indexed oldPct,
         uint256 indexed newPct
     );
+    event EmergencyExitTriggered(address indexed caller);
 
     // ===== Constructor =====
 
@@ -213,6 +214,23 @@ contract LendingVault is ILendingVault, Ownable, ReentrancyGuard {
         }
 
         lastRebalanceTime = block.timestamp;
+    }
+
+    /**
+     * @notice Emergency exit - called by Reactive Contract when bank run is detected
+     * @param rvmId The ReactVM ID (injected by Reactive Network)
+     */
+    function executeEmergencyExit(address rvmId) external nonReentrant {
+        require(rvmId == authorizedReactVM, "Unauthorized ReactVM");
+
+        emit EmergencyExitTriggered(msg.sender);
+
+        // Full exit from all pools
+        uint256 poolAShares = poolA.sharesOf(address(this));
+        uint256 poolBShares = poolB.sharesOf(address(this));
+
+        if (poolAShares > 0) poolA.withdraw(poolAShares);
+        if (poolBShares > 0) poolB.withdraw(poolBShares);
     }
 
     // ===== View Functions =====

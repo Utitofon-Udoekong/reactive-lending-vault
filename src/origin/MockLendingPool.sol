@@ -99,6 +99,7 @@ contract MockLendingPool is ILendingPool, Ownable, ReentrancyGuard {
         _shares[msg.sender] += shares;
 
         emit Deposit(msg.sender, amount, shares);
+        emit LiquidityUpdated(totalAssets);
     }
 
     /**
@@ -126,6 +127,7 @@ contract MockLendingPool is ILendingPool, Ownable, ReentrancyGuard {
         asset.safeTransfer(msg.sender, amount);
 
         emit Withdraw(msg.sender, amount, shares);
+        emit LiquidityUpdated(totalAssets);
     }
 
     /**

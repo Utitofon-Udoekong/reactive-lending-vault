@@ -8,13 +8,20 @@ pragma solidity ^0.8.20;
  */
 interface ILendingPool {
     /// @notice Emitted when supply rate is updated
-    event RateUpdated(uint256 indexed newSupplyRate, uint256 indexed newBorrowRate, uint256 timestamp);
-    
+    event RateUpdated(
+        uint256 indexed newSupplyRate,
+        uint256 indexed newBorrowRate,
+        uint256 timestamp
+    );
+
     /// @notice Emitted when a deposit is made
     event Deposit(address indexed user, uint256 amount, uint256 shares);
-    
+
     /// @notice Emitted when a withdrawal is made
     event Withdraw(address indexed user, uint256 amount, uint256 shares);
+
+    /// @notice Emitted when pool liquidity changes (for Bank Run protection)
+    event LiquidityUpdated(uint256 indexed totalAssets);
 
     /// @notice Deposit funds into the lending pool
     /// @param amount The amount to deposit

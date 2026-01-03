@@ -548,23 +548,118 @@ header {
   border-color: var(--accent);
 }
 
-/* Footer */
+/* Security Dashboard Styles */
+.security-dashboard {
+  background: rgba(10, 10, 10, 0.8);
+  border: 1px solid #0fa;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-top: 1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.security-dashboard.ACTIVE {
+  border-color: #0fa;
+  box-shadow: 0 0 15px rgba(0, 255, 170, 0.15);
+}
+
+.security-dashboard.THREAT_DETECTED {
+  border-color: #f33;
+  box-shadow: 0 0 20px rgba(255, 51, 51, 0.3);
+  animation: alarm-shake 0.5s infinite;
+}
+
+.security-status {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+  margin-bottom: 1.2rem;
+  color: #0fa;
+}
+
+.THREAT_DETECTED .security-status {
+  color: #f33;
+}
+
+.pulse {
+  width: 10px;
+  height: 10px;
+  background: #0fa;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #0fa;
+  animation: pulse-glow 1.5s infinite;
+}
+
+.THREAT_DETECTED .pulse {
+  background: #f33;
+  box-shadow: 0 0 10px #f33;
+}
+
+@keyframes pulse-glow {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.5; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes alarm-shake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+  100% { transform: translateX(0); }
+}
+
+.tvl-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.tvl-item {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9rem;
+  color: #888;
+}
+
+.tvl-item .value {
+  color: #ddd;
+  font-family: monospace;
+  font-size: 1.1rem;
+  margin-top: 0.3rem;
+}
+
+/* Gas Aware status text */
+.pending-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  color: #0fa;
+  font-size: 0.85rem;
+  margin-top: 1rem;
+  padding: 0.5rem;
+  background: rgba(0, 255, 170, 0.05);
+  border-radius: 4px;
+}
+
+/* Base styles cleanup */
 footer {
-  text-align: center;
-  padding: 1.5rem 0;
-  border-top: 1px solid var(--border);
-  font-size: 0.75rem;
-  color: var(--text-dim);
+  margin-top: 4rem;
+  padding: 2rem;
+  border-top: 1px solid #333;
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: #666;
 }
 
 footer a {
-  color: var(--accent);
+  color: #0fa;
   text-decoration: none;
-  margin-left: 0.5rem;
-}
-
-footer a:hover {
-  text-decoration: underline;
 }
 
 /* Responsive */

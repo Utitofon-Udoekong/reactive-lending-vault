@@ -30,9 +30,12 @@ export const TOKEN_ABI = [
 export const POOL_ABI = [
     "function getSupplyRate() view returns (uint256)",
     "function getBorrowRate() view returns (uint256)",
-    "function totalDeposits() view returns (uint256)",
+    "function totalAssets() view returns (uint256)",
+    "function withdraw(uint256 shares) returns (uint256 amount)",
     "function updateRates(uint256 _supplyRate, uint256 _borrowRate, uint256 _utilization)",
-    "event RateUpdated(uint256 supplyRate, uint256 borrowRate, uint256 timestamp)"
+    "function convertToShares(uint256 assets) view returns (uint256)",
+    "event RateUpdated(uint256 supplyRate, uint256 borrowRate, uint256 timestamp)",
+    "event LiquidityUpdated(uint256 totalAssets)"
 ];
 
 export const VAULT_ABI = [
@@ -44,6 +47,7 @@ export const VAULT_ABI = [
     "function getAllocation() view returns (uint256 poolAAlloc, uint256 poolBAlloc)",
     "function canRebalance() view returns (bool canRebal, string memory reason)",
     "function executeRebalance(address rvmId)",
+    "function executeEmergencyExit(address rvmId)",
     "function lastRebalanceTime() view returns (uint256)",
     "function rebalanceThreshold() view returns (uint256)",
     "function rebalancePercentage() view returns (uint256)",
@@ -51,7 +55,9 @@ export const VAULT_ABI = [
     "function authorizedReactVM() view returns (address)",
     "function setRebalancePercentage(uint256 _percentage)",
     "function setRebalanceThreshold(uint256 _threshold)",
-    "event Deposit(address indexed user, uint256 amount, uint256 shares)",
-    "event Withdraw(address indexed user, uint256 amount, uint256 shares)",
-    "event Rebalance(address indexed fromPool, address indexed toPool, uint256 amount, uint256 rateA, uint256 rateB)"
+    "event VaultDeposit(address indexed user, uint256 amount, uint256 shares)",
+    "event VaultWithdraw(address indexed user, uint256 amount, uint256 shares)",
+    "event RebalanceTriggered(address indexed caller, uint256 rateA, uint256 rateB, uint256 rateDiff)",
+    "event Rebalance(address indexed fromPool, address indexed toPool, uint256 amount, uint256 rateA, uint256 rateB)",
+    "event EmergencyExitTriggered(address indexed caller)"
 ];

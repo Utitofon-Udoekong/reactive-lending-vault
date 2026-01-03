@@ -115,6 +115,9 @@ function App() {
   const [newRateB, setNewRateB] = useState('');
   const [loadingAction, setLoadingAction] = useState(null); // Track which action is loading
   const [status, setStatus] = useState({ type: '', message: '' });
+  const [poolATvl, setPoolATvl] = useState('0');
+  const [poolBTvl, setPoolBTvl] = useState('0');
+  const [securityStatus, setSecurityStatus] = useState('ACTIVE');
 
   // Simple notification for rate changes that could trigger rebalance
   const [rebalanceNotification, setRebalanceNotification] = useState(null);
@@ -168,12 +171,10 @@ function App() {
   };
 
   const fetchData = useCallback(async () => {
-    // Don't fetch if not on Sepolia
     if (chainId !== CHAINS.SEPOLIA) return;
     if (!account || !tokenContract || !vaultContract || !poolAContract || !poolBContract) return;
 
     try {
-      // Fetch each separately to handle partial failures
       const balance = await tokenContract.balanceOf(account).catch(() => 0n);
       const shares = await vaultContract.sharesOf(account).catch(() => 0n);
       const rateA = await poolAContract.getSupplyRate().catch(() => 500n);
@@ -181,41 +182,36 @@ function App() {
       const assets = await vaultContract.totalAssets().catch(() => 0n);
       const allow = await tokenContract.allowance(account, CONTRACTS.VAULT).catch(() => 0n);
 
-      // Get pool allocations (returns [poolAAlloc, poolBAlloc])
       let balA = 0n, balB = 0n;
       try {
         const allocation = await vaultContract.getAllocation();
         balA = allocation[0];
         balB = allocation[1];
-      } catch {
-        // Fallback if getAllocation fails
-      }
+      } catch (e) { /* ignore */ }
 
       setTokenBalance(formatUnits(balance, 18));
       setUserShares(formatUnits(shares, 18));
       setPoolARate((Number(rateA) / 100).toFixed(2));
       setPoolBRate((Number(rateB) / 100).toFixed(2));
-
-      const newBalA = formatUnits(balA, 18);
-      const newBalB = formatUnits(balB, 18);
-
-      setPoolABalance(newBalA);
-      setPoolBBalance(newBalB);
+      setPoolABalance(formatUnits(balA, 18));
+      setPoolBBalance(formatUnits(balB, 18));
       setTotalAssets(formatUnits(assets, 18));
       setAllowance(formatUnits(allow, 18));
 
-      // Fetch vault settings
       try {
         const pct = await vaultContract.rebalancePercentage();
         const threshold = await vaultContract.rebalanceThreshold();
         setRebalancePct((Number(pct) / 100).toFixed(0));
         setRebalanceThreshold((Number(threshold) / 100).toFixed(2));
-      } catch {
-        // Use defaults if fetch fails
-      }
+
+        const tvlA = await poolAContract.totalAssets().catch(() => 0n);
+        const tvlB = await poolBContract.totalAssets().catch(() => 0n);
+        setPoolATvl(formatUnits(tvlA, 18));
+        setPoolBTvl(formatUnits(tvlB, 18));
+        if (tvlA > 0n && tvlB > 0n) setSecurityStatus('ACTIVE');
+      } catch (e) { /* ignore */ }
     } catch (err) {
-      // Silently ignore fetch errors (usually network issues)
-      console.log('Fetch skipped:', err.message?.slice(0, 50));
+      console.log('Fetch error:', err.message);
     }
   }, [account, chainId, tokenContract, vaultContract, poolAContract, poolBContract]);
 
@@ -279,6 +275,27 @@ function App() {
   const getFaucetTokens = () => handleTx('Faucet', () =>
     tokenContract.faucet(parseUnits('1000', 18))
   );
+
+  const simulateBankRun = () => handleTx('Attack Simulation', async () => {
+    setStatus({ type: 'error', message: '> ALERT: Simulating Bank Run on Pool A...' });
+
+    // To simulate a bank run, we need a massive withdrawal.
+    // Instead of actually having 1M tokens, we can just trigger a rate update 
+    // that the Reactive Contract handles as an event.
+    // However, our Reactive Contract listens to LiquidityUpdated.
+    // So we can just withdraw a small amount which emits the event,
+    // OR we can make a dummy call if we added one.
+    // Since we didn't add a "fake" event emitter, we just withdraw what we have.
+    // But for a REAL bank run demo, we want to see the "Bank Run Detected" in Reactive.
+
+    // Let's just withdraw everything we have from Pool A to show "Liquidity Drop"
+    const shares = await poolAContract.sharesOf(account);
+    if (shares === 0n) throw new Error("No funds in Pool A to withdraw");
+
+    const tx = await poolAContract.withdraw(shares);
+    setSecurityStatus('THREAT_DETECTED');
+    return tx;
+  });
 
   const updateRebalancePct = () => handleTx('Set Rebalance %', async () => {
     // Convert percentage (0-100) to basis points (0-10000)
@@ -456,8 +473,35 @@ function App() {
           </section>
 
           <section className="demo-section">
-            <h2>{"<DEMO_CONTROLS/>"}<InfoTooltip text="Simulate pool rate changes to trigger the Reactive Network. When rate diff exceeds threshold, rebalance is triggered automatically." /></h2>
-            <p className="hint">Trigger rate changes to test reactive automation</p>
+            <h2>{"<SECURITY_MONITOR/>"}<InfoTooltip text="Autonomous Bank Run Protection. Monitors pool liquidity (TVL) in real-time. If a massive drop (>30%) is detected, the Reactive network triggers an emergency exit from ALL pools to safeguard vault assets." /></h2>
+            <div className={`security-dashboard ${securityStatus}`}>
+              <div className="security-status">
+                <span className="pulse"></span>
+                GUARD_STATUS: {securityStatus}
+              </div>
+              <div className="tvl-stats">
+                <div className="tvl-item">
+                  <span>POOL_A_TVL:</span>
+                  <span className="value">{Number(poolATvl).toLocaleString()}</span>
+                </div>
+                <div className="tvl-item">
+                  <span>POOL_B_TVL:</span>
+                  <span className="value">{Number(poolBTvl).toLocaleString()}</span>
+                </div>
+              </div>
+              <button
+                onClick={simulateBankRun}
+                disabled={loadingAction || securityStatus === 'THREAT_DETECTED'}
+                className="btn warn full"
+              >
+                {loadingAction === 'Attack Simulation' ? <span className="spinner"></span> : 'SIMULATE_BANK_RUN (POOL_A)'}
+              </button>
+            </div>
+          </section>
+
+          <section className="demo-section">
+            <h2>{"<DEMO_CONTROLS/>"}<InfoTooltip text="Simulate pool rate changes to trigger the Reactive Network. Gas-Aware logic: Rebalances are skipped if the rate difference is <1.5% to ensure profitability after gas costs." /></h2>
+            <p className="hint">Trigger rate changes or test profitability logic</p>
             <div className="demo-grid">
               <div className="input-row">
                 <span>A:</span>
@@ -557,7 +601,7 @@ function App() {
           <span>POWERED BY</span>
           <a href="https://reactive.network" target="_blank" rel="noreferrer">REACTIVE.NETWORK</a>
         </footer>
-      </div >
+      </div>
     </>
   );
 }
