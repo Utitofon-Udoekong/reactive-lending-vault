@@ -236,16 +236,16 @@ forge script script/TestWorkflow.s.sol:TestWorkflow \
 
 | Contract | Address | Role |
 |----------|---------|------|
-| MockToken (mUSDC) | [`0xfd4922b5922cecda5247fc4fce24c282c8e7054f`](https://sepolia.etherscan.io/address/0xfd4922b5922cecda5247fc4fce24c282c8e7054f) | ERC20 Token |
-| Pool A | [`0x7e86a54bfb0a6ff92854f6e6d7041bde67b53f3c`](https://sepolia.etherscan.io/address/0x7e86a54bfb0a6ff92854f6e6d7041bde67b53f3c) | Origin (emits RateUpdated events) |
-| Pool B | [`0xf7c1100efc7897a6cb79934196caab20a970a699`](https://sepolia.etherscan.io/address/0xf7c1100efc7897a6cb79934196caab20a970a699) | Origin (emits RateUpdated events) |
-| LendingVault | [`0x7110afae0e662d28e26336a1c4e85a6d152843ad`](https://sepolia.etherscan.io/address/0x7110afae0e662d28e26336a1c4e85a6d152843ad) | Destination (receives callbacks) |
+| MockToken (mUSDC) | [`0x6cd055e56d2f1b5a3a9c99ae1f876fd9e90daa95`](https://sepolia.etherscan.io/address/0x6cd055e56d2f1b5a3a9c99ae1f876fd9e90daa95) | ERC20 Token |
+| Pool A | [`0x8edfae6f22d7345f90a0e1da342ff67165cb12da`](https://sepolia.etherscan.io/address/0x8edfae6f22d7345f90a0e1da342ff67165cb12da) | Origin (emits RateUpdated events) |
+| Pool B | [`0x7a83249545a0ffa230d784c67d74aca789373ba5`](https://sepolia.etherscan.io/address/0x7a83249545a0ffa230d784c67d74aca789373ba5) | Origin (emits RateUpdated events) |
+| LendingVault | [`0x38781cfe3bb5b0e87b7c190b36e471e8c14394d7`](https://sepolia.etherscan.io/address/0x38781cfe3bb5b0e87b7c190b36e471e8c14394d7) | Destination (receives callbacks) |
 
 ### Reactive Network Lasna Testnet (Chain ID: 5318007)
 
 | Contract | Address | Role |
 |----------|---------|------|
-| YieldMonitorReactive | [`0x1652f7268eef655299304f9ea423be7ba9fc7c01`](https://lasna.reactscan.net/address/0x1652f7268eef655299304f9ea423be7ba9fc7c01) | Reactive Contract |
+| YieldMonitorReactive | [`0x4A37F29595E87dbDf605c5f213feC775B0D96976`](https://lasna.reactscan.net/address/0x4A37F29595E87dbDf605c5f213feC775B0D96976) | Reactive Contract |
 
 **ReactVM ID (Deployer Address):** `0xabBce9E834eB1c61CDbE7225be03987a8945BCbC`
 
