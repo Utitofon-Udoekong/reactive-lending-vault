@@ -291,47 +291,7 @@ contract YieldMonitorReactiveTest is Test {
         assertEq(reactive.rebalancesTriggered(), 1); // Still 1
     }
 
-    function test_GetStoredRates() public {
-        IReactive.LogRecord memory logA = _createLogRecord(poolA, 500, 0);
-        IReactive.LogRecord memory logB = _createLogRecord(poolB, 300, 1);
-
-        reactive.testReact(logA);
-        reactive.testReact(logB);
-
-        (uint256 rateA, uint256 rateB) = reactive.getStoredRates();
-        assertEq(rateA, 500);
-        assertEq(rateB, 300);
-    }
-
-    function test_GetStats() public {
-        IReactive.LogRecord memory logA = _createLogRecord(poolA, 500, 0);
-        IReactive.LogRecord memory logB = _createLogRecord(poolB, 300, 1);
-        IReactive.LogRecord memory logA2 = _createLogRecord(
-            poolA,
-            800,
-            MIN_BLOCKS + 2
-        );
-
-        reactive.testReact(logA);
-        reactive.testReact(logB);
-        reactive.testReact(logA2);
-
-        (uint256 events, uint256 rebalances) = reactive.getStats();
-        assertEq(events, 3);
-        assertEq(rebalances, 1);
-    }
-
-    function test_WouldRebalance() public {
-        IReactive.LogRecord memory logA = _createLogRecord(poolA, 500, 0);
-        IReactive.LogRecord memory logB = _createLogRecord(poolB, 300, 1);
-
-        reactive.testReact(logA);
-        reactive.testReact(logB);
-
-        (bool shouldRebalance, uint256 rateDiff) = reactive.wouldRebalance();
-        assertTrue(shouldRebalance);
-        assertEq(rateDiff, 200);
-    }
+    // Removed obsolete tests (getStoredRates, getStats, wouldRebalance were removed from contract)
 
     function testFuzz_React_HandlesAnyRate(uint256 rate) public {
         rate = bound(rate, 0, 10000);

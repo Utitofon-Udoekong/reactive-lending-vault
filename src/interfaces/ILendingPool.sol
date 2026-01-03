@@ -21,7 +21,9 @@ interface ILendingPool {
     event Withdraw(address indexed user, uint256 amount, uint256 shares);
 
     /// @notice Emitted when pool liquidity changes (for Bank Run protection)
-    event LiquidityUpdated(uint256 indexed totalAssets);
+    /// @param totalAssets The new total assets in the pool
+    /// @param caller The address that initiated the change (withdraw/deposit)
+    event LiquidityUpdated(uint256 indexed totalAssets, address indexed caller);
 
     /// @notice Deposit funds into the lending pool
     /// @param amount The amount to deposit

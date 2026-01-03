@@ -35,10 +35,10 @@ contract YieldMonitorReactive is AbstractReactive {
     /// @notice Gas limit for callback transactions
     uint64 public constant CALLBACK_GAS_LIMIT = 1000000;
 
-    /// @notice Event signature for LiquidityUpdated(uint256)
-    /// @dev keccak256("LiquidityUpdated(uint256)")
+    /// @notice Event signature for LiquidityUpdated(uint256,address)
+    /// @dev keccak256("LiquidityUpdated(uint256,address)")
     uint256 public constant LIQUIDITY_UPDATED_TOPIC =
-        0xf136596ab9e7acfd9d9cf6a0893ed79cc46ceab0c99ff3cb62c560645dad4658;
+        0xc6d506278dcea01b9ef84fac00810508994d6fb2725e81dcd9fc9a20fc28506f;
 
     /// @notice Minimum yield gain to cover fallback gas (18 decimal units)
     /// @dev Approx 0.005 tokens (assuming gas costs ~0.003-0.005 ETH/USDC)
@@ -231,6 +231,16 @@ contract YieldMonitorReactive is AbstractReactive {
         // Handle LiquidityUpdated events (Bank Run protection)
         else if (log.topic_0 == LIQUIDITY_UPDATED_TOPIC) {
             uint256 newTvl = log.topic_1;
+            // topic_2 is the caller address (indexed)
+            address caller = address(uint160(log.topic_2));
+
+            // IMPORTANT: Ignore if the caller is the LendingVault.
+            // This prevents false positives when the vault rebalances.
+            if (caller == lendingVault) {
+                // This is an internal vault operation (rebalance), not a bank run.
+                return;
+            }
+
             if (log._contract == poolA) {
                 _evaluateLiquidity(poolA, lastTvlA, newTvl, log.block_number);
                 lastTvlA = newTvl;
